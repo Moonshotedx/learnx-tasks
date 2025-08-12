@@ -1,0 +1,28 @@
+{
+  "name": "learnx-tasks",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "pnpm dlx @trigger.dev/cli@latest dev"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.14.0",
+  "dependencies": {
+    "@trigger.dev/sdk": "^3.3.17",
+    "express": "^5.1.0",
+    "@trigger.dev/express": "^3.3.12"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.2.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.2"
+  },
+  "trigger.dev": {
+    "endpointId": "learnx-Qr0q"
+  }
+}
