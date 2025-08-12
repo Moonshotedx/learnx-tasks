@@ -17,3 +17,7 @@ yarn-error.log*
 *.db
 *.bak
 *.tmp
+
+# ignore trigger dev files
+/.trigger/
+/.trigger.dev/
