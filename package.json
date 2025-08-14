@@ -12,9 +12,12 @@
   "license": "ISC",
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
+    "@trigger.dev/express": "^3.3.12",
     "@trigger.dev/sdk": "^3.3.17",
     "express": "^5.1.0",
-    "@trigger.dev/express": "^3.3.12"
+    "pg": "^8.16.3",
+    "web-push": "^3.6.7",
+    "zeptomail": "^6.2.1"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
