@@ -6,7 +6,7 @@ import { SendMailClient } from 'zeptomail';
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'tech@xcelerator.co.in';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:tech@xcelerator.co.in';
 
 const ZEPTO_URL = process.env.ZEPTO_URL || 'https://api.zeptomail.in/v1.1/email';
 const ZEPTO_TOKEN = process.env.ZEPTO_TOKEN || '';
