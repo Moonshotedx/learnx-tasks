@@ -47,7 +47,7 @@ jobs:
           REGISTRY_URL: ghcr.io
         run: |
           # Deploy to staging environment
-          pnpm dlx trigger.dev@latest deploy --push --registry "ghcr.io/moonshotedx" --env staging
+          pnpm dlx trigger.dev@latest deploy "ghcr.io/moonshotedx" --env staging
 
           # Deploy to production environment
-          pnpm dlx trigger.dev@latest deploy --push --registry "ghcr.io/moonshotedx" --env prod
+          pnpm dlx trigger.dev@latest deploy "ghcr.io/moonshotedx" --env prod
