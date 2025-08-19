@@ -1,3 +1,9 @@
+      - name: Debug VAPID_PUBLIC_KEY
+        run: |
+          echo "VAPID_PUBLIC_KEY length: ${#VAPID_PUBLIC_KEY}"
+          echo "VAPID_PUBLIC_KEY value: $VAPID_PUBLIC_KEY"
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
 name: Deploy learnx-tasks to Ark
 
 on:
@@ -39,6 +45,13 @@ jobs:
       #     registry: ${{ secrets.REGISTRY_URL }}
       #     username: ${{ secrets.REGISTRY_USERNAME }}
       #     password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Debug VAPID_PUBLIC_KEY
+        run: |
+          echo "VAPID_PUBLIC_KEY length: ${#VAPID_PUBLIC_KEY}"
+          echo "VAPID_PUBLIC_KEY value: $VAPID_PUBLIC_KEY"
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
 
       - name: 🚀 Deploy Tasks
         env:
