@@ -45,6 +45,15 @@ jobs:
           TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
           TRIGGER_API_URL: ${{ secrets.TRIGGER_API_URL }}
           REGISTRY_URL: ghcr.io
+
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+
+          ZEPTO_URL: ${{ secrets.ZEPTO_URL }}
+          ZEPTO_FROM_NAME: ${{ secrets.ZEPTO_FROM_NAME }}
+          ZEPTO_FROM_ADDRESS: ${{ secrets.ZEPTO_FROM_ADDRESS }}
+          ZEPTO_TOKEN: ${{ secrets.ZEPTO_TOKEN }}
         run: |
           # Deploy to staging environment
           pnpm dlx trigger.dev@3.3.16 deploy --self-hosted --push --registry "ghcr.io/moonshotedx" --env staging
