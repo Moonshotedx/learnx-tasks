@@ -1,27 +1,44 @@
-
-
 import webpush from 'web-push';
 import { Pool } from 'pg';
 import { SendMailClient } from 'zeptomail';
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:tech@xcelerator.co.in';
+let webpushInitialized = false;
+let zeptoClient: SendMailClient | null = null;
 
-const ZEPTO_URL = process.env.ZEPTO_URL || 'https://api.zeptomail.in/v1.1/email';
-const ZEPTO_TOKEN = process.env.ZEPTO_TOKEN || '';
-const ZEPTO_FROM_ADDRESS = process.env.ZEPTO_FROM_ADDRESS || 'tech@xcelerator.co.in';
-const ZEPTO_FROM_NAME = process.env.ZEPTO_FROM_NAME || 'LearnX';
+function initializeWebPush() {
+  if (!webpushInitialized) {
+    const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+    const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+    const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:tech@xcelerator.co.in';
+    
+    if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+      throw new Error('VAPID keys are required for push notifications');
+    }
+    
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    webpushInitialized = true;
+  }
+}
 
-webpush.setVapidDetails(
-  VAPID_SUBJECT,
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
-
-const zeptoClient = new SendMailClient({ url: ZEPTO_URL, token: ZEPTO_TOKEN });
+function getZeptoClient() {
+  if (!zeptoClient) {
+    const ZEPTO_URL = process.env.ZEPTO_URL || 'https://api.zeptomail.in/v1.1/email';
+    const ZEPTO_TOKEN = process.env.ZEPTO_TOKEN;
+    
+    if (!ZEPTO_TOKEN) {
+      throw new Error('ZEPTO_TOKEN is required for email notifications');
+    }
+    
+    zeptoClient = new SendMailClient({ url: ZEPTO_URL, token: ZEPTO_TOKEN });
+  }
+  return zeptoClient;
+}
 
 async function sendZeptoMail(to: string, subject: string, body: string) {
+  const client = getZeptoClient();
+  const ZEPTO_FROM_ADDRESS = process.env.ZEPTO_FROM_ADDRESS || 'tech@xcelerator.co.in';
+  const ZEPTO_FROM_NAME = process.env.ZEPTO_FROM_NAME || 'LearnX';
+  
   const htmlTemplate = `
   <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: rgba(248, 250, 252, 0.6); padding: 24px; margin: 0;">
     <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 700px; margin: 0 auto;">
@@ -69,7 +86,7 @@ async function sendZeptoMail(to: string, subject: string, body: string) {
   </div>
   `;
 
-  return zeptoClient.sendMail({
+  return client.sendMail({
     from: {
       address: ZEPTO_FROM_ADDRESS,
       name: ZEPTO_FROM_NAME
@@ -90,14 +107,16 @@ async function sendZeptoMail(to: string, subject: string, body: string) {
 
 export class NotificationService {
   private pool: Pool;
+  
   constructor(pool: Pool) {
     this.pool = pool;
   }
 
   async sendPushNotification(userId: string, payload: { title: string; body: string; data?: any }) {
+    initializeWebPush(); 
     const subsRes = await this.pool.query(
       `SELECT subscription FROM notification_records WHERE user_id = $1 AND is_active = 1`, [userId]
-    );
+    );  
     await Promise.all(
       subsRes.rows.map((subRow: any) => {
         let subscription: any = subRow.subscription;
