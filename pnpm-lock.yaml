@@ -10,10 +10,10 @@ importers:
     dependencies:
       '@trigger.dev/express':
         specifier: ^3.3.12
-        version: 3.3.12(@trigger.dev/sdk@3.3.17(zod@3.23.8))
+        version: 3.3.12(@trigger.dev/sdk@3.3.16(zod@3.23.8))
       '@trigger.dev/sdk':
-        specifier: ^3.3.17
-        version: 3.3.17(zod@3.23.8)
+        specifier: ^3.3.16
+        version: 3.3.16(zod@3.23.8)
       express:
         specifier: ^5.1.0
         version: 5.1.0
@@ -242,8 +242,8 @@ packages:
   '@socket.io/component-emitter@3.1.2':
     resolution: {integrity: sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==}
 
-  '@trigger.dev/core@3.3.17':
-    resolution: {integrity: sha512-KjnRxCuHq4R+MnE0zPvIQ7EIz4QSpJL+1Yn74n2cCGjyHYgQ/g8rcARn0Nxf2s8jzE38CnyRufjUrwG8k+DJrw==}
+  '@trigger.dev/core@3.3.16':
+    resolution: {integrity: sha512-OCxl9A7QvqLnGlnl195p8lw0pTY7hJQyaY35Sdy2GuYcm28ktwzx3F2Iu3ulgcmDlKQTpf1VZsSA5wP/enRRpQ==}
     engines: {node: '>=18.20.0'}
 
   '@trigger.dev/express@3.3.12':
@@ -253,8 +253,8 @@ packages:
     peerDependencies:
       '@trigger.dev/sdk': ~2.3.0 || ^3.0.0
 
-  '@trigger.dev/sdk@3.3.17':
-    resolution: {integrity: sha512-wjIjlQWKybYWw/J7LxFIOO1pXzxXoj9lxbFMvjb51JtfebxnQnh6aExN47nOGhVhV38wHYstfBI/8ClWwBnFYw==}
+  '@trigger.dev/sdk@3.3.16':
+    resolution: {integrity: sha512-vObHP0P5ugyZNKiAOLTD1rWeHKiX97K82aj06HaOceRZxwztbBnuhD3AXAODISvroKguySUcrLDCMOSTpXUung==}
     engines: {node: '>=18.20.0'}
     peerDependencies:
       zod: ^3.0.0
@@ -1566,7 +1566,7 @@ snapshots:
 
   '@socket.io/component-emitter@3.1.2': {}
 
-  '@trigger.dev/core@3.3.17':
+  '@trigger.dev/core@3.3.16':
     dependencies:
       '@electric-sql/client': 1.0.0-beta.1
       '@google-cloud/precise-date': 4.0.0
@@ -1599,20 +1599,20 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@trigger.dev/express@3.3.12(@trigger.dev/sdk@3.3.17(zod@3.23.8))':
+  '@trigger.dev/express@3.3.12(@trigger.dev/sdk@3.3.16(zod@3.23.8))':
     dependencies:
-      '@trigger.dev/sdk': 3.3.17(zod@3.23.8)
+      '@trigger.dev/sdk': 3.3.16(zod@3.23.8)
       debug: 4.4.1
       express: 4.21.2
     transitivePeerDependencies:
       - supports-color
 
-  '@trigger.dev/sdk@3.3.17(zod@3.23.8)':
+  '@trigger.dev/sdk@3.3.16(zod@3.23.8)':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/api-logs': 0.52.1
       '@opentelemetry/semantic-conventions': 1.25.1
-      '@trigger.dev/core': 3.3.17
+      '@trigger.dev/core': 3.3.16
       chalk: 5.5.0
       cronstrue: 2.59.0
       debug: 4.4.1

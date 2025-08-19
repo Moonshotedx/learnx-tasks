@@ -13,7 +13,7 @@
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
     "@trigger.dev/express": "^3.3.12",
-    "@trigger.dev/sdk": "^3.3.17",
+    "@trigger.dev/sdk": "^3.3.16",
     "express": "^5.1.0",
     "pg": "^8.16.3",
     "web-push": "^3.6.7",
