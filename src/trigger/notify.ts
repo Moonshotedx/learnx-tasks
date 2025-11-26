@@ -48,10 +48,13 @@ export const scheduleStudentDeadlineNotification = task({
                 tags: [
                     `run_${payload.runId}`,
                     `activity_${payload.courseActivityId}`,
+                    'student_deadline',
                 ],
                 metadata: {
                     runId: payload.runId,
                     courseActivityId: payload.courseActivityId,
+                    deadline: payload.deadline,
+                    type: 'student_deadline_notification',
                 },
             },
         );
@@ -223,10 +226,13 @@ export const scheduleManagerDeadlineWarning = task({
                 tags: [
                     `run_${payload.runId}`,
                     `activity_${payload.courseActivityId}`,
+                    'manager_warning',
                 ],
                 metadata: {
                     runId: payload.runId,
                     courseActivityId: payload.courseActivityId,
+                    deadline: payload.deadline,
+                    type: 'manager_deadline_warning',
                 },
             },
         );
@@ -839,8 +845,17 @@ export const scheduleNotifyMissedDeadline = task({
             { courseActivityId, runId, deadline },
             {
                 delay: new Date(deadline).toISOString(),
-                tags: [`run_${runId}`, `activity_${courseActivityId}`],
-                metadata: { runId, courseActivityId, deadline },
+                tags: [
+                    `run_${runId}`,
+                    `activity_${courseActivityId}`,
+                    'missed_deadline',
+                ],
+                metadata: {
+                    runId,
+                    courseActivityId,
+                    deadline,
+                    type: 'missed_deadline_notification',
+                },
             },
         );
     },
@@ -1170,8 +1185,18 @@ export const scheduleNotifyFacilitatorPostDeadlineSummary = task({
             { courseActivityId, runId, deadline },
             {
                 delay: new Date(deadline).toISOString(),
-                tags: [`run_${runId}`, `activity_${courseActivityId}`],
-                metadata: { runId, courseActivityId, deadline, activityType },
+                tags: [
+                    `run_${runId}`,
+                    `activity_${courseActivityId}`,
+                    'facilitator_summary',
+                ],
+                metadata: {
+                    runId,
+                    courseActivityId,
+                    deadline,
+                    activityType,
+                    type: 'facilitator_post_deadline_summary',
+                },
             },
         );
     },
