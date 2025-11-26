@@ -1,32 +1,32 @@
 {
-  "name": "learnx-tasks",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "build": "tsc",
-    "dev": "pnpm dlx trigger.dev@3.3.16 dev",
-    "test:notifications": "ts-node src/test/notification-tests.ts"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.14.0",
-  "dependencies": {
-    "@trigger.dev/sdk": "^3.3.16",
-    "express": "^5.1.0",
-    "pg": "^8.16.3",
-    "web-push": "^3.6.7",
-    "zeptomail": "^6.2.1"
-  },
-  "devDependencies": {
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.2.1",
-    "ts-node": "^10.9.2",
-    "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.2"
-  },
-  "trigger.dev": {
-    "endpointId": "learnx-Qr0q"
-  }
+    "name": "learnx-tasks",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "build": "tsc",
+        "dev": "pnpm dlx trigger.dev@3.3.16 dev",
+        "test:notifications": "ts-node src/test/notification-tests.ts"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "packageManager": "pnpm@10.14.0",
+    "dependencies": {
+        "@trigger.dev/sdk": "^3.3.16",
+        "express": "^5.1.0",
+        "pg": "^8.16.3",
+        "web-push": "^3.6.7",
+        "zeptomail": "^6.2.1"
+    },
+    "devDependencies": {
+        "@types/express": "^5.0.3",
+        "@types/node": "^24.2.1",
+        "ts-node": "^10.9.2",
+        "ts-node-dev": "^2.0.0",
+        "typescript": "^5.9.2"
+    },
+    "trigger.dev": {
+        "endpointId": "learnx-Qr0q"
+    }
 }

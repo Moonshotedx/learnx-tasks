@@ -1,697 +1,742 @@
 {
-  "users": [
-    {
-      "id": "user-admin-1",
-      "name": "John Admin",
-      "email": "john.admin@test.com",
-      "role": "admin"
-    },
-    {
-      "id": "user-manager-1",
-      "name": "Sarah Manager",
-      "email": "sarah.manager@test.com",
-      "role": "manager"
-    },
-    {
-      "id": "user-manager-2",
-      "name": "Mike Manager",
-      "email": "mike.manager@test.com",
-      "role": "manager"
-    },
-    {
-      "id": "user-student-1",
-      "name": "Alice Student",
-      "email": "alice.student@test.com",
-      "role": "student"
-    },
-    {
-      "id": "user-student-2",
-      "name": "Bob Student",
-      "email": "bob.student@test.com",
-      "role": "student"
-    },
-    {
-      "id": "user-student-3",
-      "name": "Charlie Student",
-      "email": "charlie.student@test.com",
-      "role": "student"
-    },
-    {
-      "id": "user-student-4",
-      "name": "Diana Student",
-      "email": "diana.student@test.com",
-      "role": "student"
-    },
-    {
-      "id": "user-student-5",
-      "name": "Eve Student",
-      "email": "eve.student@test.com",
-      "role": "student"
+    "users": [
+        {
+            "id": "user-admin-1",
+            "name": "John Admin",
+            "email": "john.admin@test.com",
+            "role": "admin"
+        },
+        {
+            "id": "user-manager-1",
+            "name": "Sarah Manager",
+            "email": "sarah.manager@test.com",
+            "role": "manager"
+        },
+        {
+            "id": "user-manager-2",
+            "name": "Mike Manager",
+            "email": "mike.manager@test.com",
+            "role": "manager"
+        },
+        {
+            "id": "user-student-1",
+            "name": "Alice Student",
+            "email": "alice.student@test.com",
+            "role": "student"
+        },
+        {
+            "id": "user-student-2",
+            "name": "Bob Student",
+            "email": "bob.student@test.com",
+            "role": "student"
+        },
+        {
+            "id": "user-student-3",
+            "name": "Charlie Student",
+            "email": "charlie.student@test.com",
+            "role": "student"
+        },
+        {
+            "id": "user-student-4",
+            "name": "Diana Student",
+            "email": "diana.student@test.com",
+            "role": "student"
+        },
+        {
+            "id": "user-student-5",
+            "name": "Eve Student",
+            "email": "eve.student@test.com",
+            "role": "student"
+        }
+    ],
+    "groups": [
+        {
+            "id": 1,
+            "name": "Computer Science Batch 2024",
+            "description": "CS students enrolled in 2024"
+        },
+        {
+            "id": 2,
+            "name": "Data Science Batch 2024",
+            "description": "DS students enrolled in 2024"
+        },
+        {
+            "id": 3,
+            "name": "Mathematics Batch 2024",
+            "description": "Math students enrolled in 2024"
+        }
+    ],
+    "group_members": [
+        {
+            "id": 1,
+            "group_id": 1,
+            "user_id": "user-student-1",
+            "role": "student"
+        },
+        {
+            "id": 2,
+            "group_id": 1,
+            "user_id": "user-student-2",
+            "role": "student"
+        },
+        {
+            "id": 3,
+            "group_id": 1,
+            "user_id": "user-student-3",
+            "role": "student"
+        },
+        {
+            "id": 4,
+            "group_id": 2,
+            "user_id": "user-student-4",
+            "role": "student"
+        },
+        {
+            "id": 5,
+            "group_id": 2,
+            "user_id": "user-student-5",
+            "role": "student"
+        },
+        {
+            "id": 6,
+            "group_id": 3,
+            "user_id": "user-student-3",
+            "role": "student"
+        }
+    ],
+    "courses": [
+        {
+            "id": 1,
+            "name": "Introduction to Programming",
+            "description": "Learn the basics of programming",
+            "created_by": "user-admin-1"
+        },
+        {
+            "id": 2,
+            "name": "Advanced Algorithms",
+            "description": "Deep dive into complex algorithms",
+            "created_by": "user-admin-1"
+        },
+        {
+            "id": 3,
+            "name": "Machine Learning Fundamentals",
+            "description": "Introduction to ML concepts",
+            "created_by": "user-manager-1"
+        }
+    ],
+    "course_managers": [
+        {
+            "id": 1,
+            "course_id": 1,
+            "user_id": "user-manager-1"
+        },
+        {
+            "id": 2,
+            "course_id": 1,
+            "user_id": "user-manager-2"
+        },
+        {
+            "id": 3,
+            "course_id": 2,
+            "user_id": "user-manager-1"
+        },
+        {
+            "id": 4,
+            "course_id": 3,
+            "user_id": "user-manager-2"
+        }
+    ],
+    "activities": [
+        {
+            "id": 1,
+            "type": "quiz",
+            "created_by": "user-admin-1",
+            "is_locked": 1,
+            "published": 0,
+            "is_graded": 1,
+            "requires_seb": 0,
+            "payload": "{\"title\":\"Introduction Quiz\",\"introduction\":\"Test your basic programming knowledge\",\"questions\":[{\"id\":\"q1\",\"question\":\"What is a variable?\",\"options\":[\"A container for data\",\"A function\",\"A loop\",\"A condition\"],\"correctOptionIndex\":0,\"marks\":2},{\"id\":\"q2\",\"question\":\"What does OOP stand for?\",\"options\":[\"Object Oriented Programming\",\"Only One Program\",\"Open Operating Protocol\",\"Organized Output Process\"],\"correctOptionIndex\":0,\"marks\":2}]}"
+        },
+        {
+            "id": 2,
+            "type": "assignment",
+            "created_by": "user-admin-1",
+            "is_locked": 0,
+            "published": 0,
+            "is_graded": 1,
+            "requires_seb": 0,
+            "payload": "{\"title\":\"Build a Calculator\",\"description\":\"Create a basic calculator application\",\"submissionOptions\":[\"file\",\"link\"],\"deadline\":\"2024-12-31T23:59:59Z\"}"
+        },
+        {
+            "id": 3,
+            "type": "exam",
+            "created_by": "user-manager-1",
+            "is_locked": 1,
+            "published": 0,
+            "is_graded": 1,
+            "requires_seb": 1,
+            "payload": "{\"title\":\"Midterm Exam\",\"description\":\"Comprehensive midterm examination\",\"deadline\":\"2024-12-15T14:00:00Z\",\"duration\":120,\"questions\":[{\"id\":\"e1\",\"type\":\"short-answer\",\"question\":\"Explain polymorphism\",\"marks\":10,\"order\":1},{\"id\":\"e2\",\"type\":\"long-answer\",\"question\":\"Describe the software development lifecycle\",\"marks\":20,\"order\":2}]}"
+        },
+        {
+            "id": 4,
+            "type": "reading",
+            "created_by": "user-manager-1",
+            "is_locked": 0,
+            "published": 0,
+            "is_graded": 0,
+            "requires_seb": 0,
+            "payload": "{\"title\":\"Introduction to Data Structures\",\"content\":\"# Data Structures\\n\\nThis reading material covers fundamental data structures...\",\"links\":[{\"url\":\"https://example.com/ds\",\"description\":\"Additional resources\"}]}"
+        },
+        {
+            "id": 5,
+            "type": "lecture",
+            "created_by": "user-manager-2",
+            "is_locked": 0,
+            "published": 0,
+            "is_graded": 0,
+            "requires_seb": 0,
+            "payload": "{\"title\":\"Neural Networks Basics\",\"description\":\"Introduction to neural networks\",\"videoUrl\":\"https://example.com/video/nn-basics\",\"durationSeconds\":3600,\"transcript\":\"Welcome to neural networks...\",\"links\":[]}"
+        },
+        {
+            "id": 6,
+            "type": "assignment",
+            "created_by": "user-manager-1",
+            "is_locked": 0,
+            "published": 1,
+            "published_at": "2024-11-20T10:00:00Z",
+            "is_graded": 1,
+            "requires_seb": 0,
+            "payload": "{\"title\":\"Data Analysis Project\",\"description\":\"Analyze the provided dataset\",\"submissionOptions\":[\"file\"],\"deadline\":\"2024-12-20T23:59:59Z\"}"
+        }
+    ],
+    "course_activities": [
+        {
+            "id": 1,
+            "course_id": 1,
+            "activity_id": 1,
+            "order": 1,
+            "start_offset_days": 0,
+            "end_offset_days": 7
+        },
+        {
+            "id": 2,
+            "course_id": 1,
+            "activity_id": 2,
+            "order": 2,
+            "start_offset_days": 7,
+            "end_offset_days": 21
+        },
+        {
+            "id": 3,
+            "course_id": 1,
+            "activity_id": 4,
+            "order": 3,
+            "start_offset_days": 0,
+            "end_offset_days": null
+        },
+        {
+            "id": 4,
+            "course_id": 2,
+            "activity_id": 3,
+            "order": 1,
+            "start_offset_days": 14,
+            "end_offset_days": 28
+        },
+        {
+            "id": 5,
+            "course_id": 3,
+            "activity_id": 5,
+            "order": 1,
+            "start_offset_days": 0,
+            "end_offset_days": null
+        },
+        {
+            "id": 6,
+            "course_id": 3,
+            "activity_id": 6,
+            "order": 2,
+            "start_offset_days": 7,
+            "end_offset_days": 30
+        }
+    ],
+    "course_runs": [
+        {
+            "id": 1,
+            "course_id": 1,
+            "group_id": 1,
+            "name": "Programming Fall 2024",
+            "start_date": "2024-09-01",
+            "end_date": "2024-12-31",
+            "view_format": "module_wise",
+            "is_evaluation_freezed": 0
+        },
+        {
+            "id": 2,
+            "course_id": 2,
+            "group_id": 1,
+            "name": "Algorithms Fall 2024",
+            "start_date": "2024-09-15",
+            "end_date": "2024-12-31",
+            "view_format": "module_wise",
+            "is_evaluation_freezed": 0
+        },
+        {
+            "id": 3,
+            "course_id": 3,
+            "group_id": 2,
+            "name": "ML Spring 2024",
+            "start_date": "2024-10-01",
+            "end_date": "2025-01-31",
+            "view_format": "topic_wise",
+            "is_evaluation_freezed": 0
+        },
+        {
+            "id": 4,
+            "course_id": 1,
+            "group_id": 3,
+            "name": "Programming Winter 2024",
+            "start_date": "2024-11-01",
+            "end_date": "2025-02-28",
+            "view_format": "module_wise",
+            "is_evaluation_freezed": 0
+        }
+    ],
+    "run_activity_overrides": [
+        {
+            "id": 1,
+            "course_run_id": 1,
+            "course_activity_id": 1,
+            "window_start": "2024-09-01T00:00:00Z",
+            "window_end": "2024-12-15T23:59:59Z",
+            "is_disabled": 0,
+            "is_locked": 1,
+            "published": 0,
+            "is_graded": 1,
+            "scale_marks": null,
+            "requires_seb": 0
+        },
+        {
+            "id": 2,
+            "course_run_id": 1,
+            "course_activity_id": 2,
+            "window_start": "2024-09-08T00:00:00Z",
+            "window_end": "2024-12-22T23:59:59Z",
+            "is_disabled": 0,
+            "is_locked": 0,
+            "published": 0,
+            "is_graded": 1,
+            "scale_marks": null,
+            "requires_seb": 0
+        },
+        {
+            "id": 3,
+            "course_run_id": 2,
+            "course_activity_id": 4,
+            "window_start": "2024-09-15T00:00:00Z",
+            "window_end": "2024-12-13T23:59:59Z",
+            "is_disabled": 0,
+            "is_locked": 1,
+            "published": 0,
+            "is_graded": 1,
+            "scale_marks": null,
+            "requires_seb": 1
+        },
+        {
+            "id": 4,
+            "course_run_id": 3,
+            "course_activity_id": 6,
+            "window_start": "2024-10-08T00:00:00Z",
+            "window_end": "2024-12-20T23:59:59Z",
+            "is_disabled": 0,
+            "is_locked": 0,
+            "published": 0,
+            "is_graded": 1,
+            "scale_marks": "80",
+            "requires_seb": 0
+        }
+    ],
+    "assignment_submissions": [
+        {
+            "id": 1,
+            "activity_id": 2,
+            "user_id": "user-student-1",
+            "course_run_id": 1,
+            "submission_type": "file",
+            "file_url": "https://example.com/submissions/student1-calc.zip",
+            "description": "Calculator implementation",
+            "submitted_at": "2024-11-15T10:30:00Z",
+            "reviewed": 1,
+            "feedback": "Great work! Well structured code.",
+            "reviewed_at": "2024-11-16T14:00:00Z",
+            "reviewed_by": "user-manager-1"
+        },
+        {
+            "id": 2,
+            "activity_id": 2,
+            "user_id": "user-student-2",
+            "course_run_id": 1,
+            "submission_type": "link",
+            "link_url": "https://github.com/bobstudent/calculator",
+            "description": "GitHub repository",
+            "submitted_at": "2024-11-18T16:45:00Z",
+            "reviewed": 0
+        },
+        {
+            "id": 3,
+            "activity_id": 6,
+            "user_id": "user-student-4",
+            "course_run_id": 3,
+            "submission_type": "file",
+            "file_url": "https://example.com/submissions/student4-analysis.pdf",
+            "description": "Data analysis report",
+            "submitted_at": "2024-11-19T20:00:00Z",
+            "reviewed": 0
+        }
+    ],
+    "quiz_attempts": [
+        {
+            "id": 1,
+            "activity_id": 1,
+            "user_id": "user-student-1",
+            "course_run_id": 1,
+            "started_at": "2024-11-10T09:00:00Z",
+            "completed_at": "2024-11-10T09:15:00Z",
+            "answers": "[{\"questionId\":\"q1\",\"selectedOption\":0},{\"questionId\":\"q2\",\"selectedOption\":0}]",
+            "score": 4,
+            "scaled_marks": null,
+            "active_session_id": null,
+            "session_count": 0
+        },
+        {
+            "id": 2,
+            "activity_id": 1,
+            "user_id": "user-student-2",
+            "course_run_id": 1,
+            "started_at": "2024-11-11T10:00:00Z",
+            "completed_at": "2024-11-11T10:20:00Z",
+            "answers": "[{\"questionId\":\"q1\",\"selectedOption\":0},{\"questionId\":\"q2\",\"selectedOption\":1}]",
+            "score": 2,
+            "scaled_marks": null,
+            "active_session_id": null,
+            "session_count": 0
+        }
+    ],
+    "exam_submissions": [
+        {
+            "id": 1,
+            "activity_id": 3,
+            "user_id": "user-student-1",
+            "course_run_id": 2,
+            "activity_index": null,
+            "submitted_at": "2024-11-25T14:00:00Z",
+            "answers": "{\"e1\":\"Polymorphism is...\",\"e2\":\"SDLC includes planning, analysis...\"}",
+            "created_at": "2024-11-25T12:00:00Z",
+            "updated_at": "2024-11-25T14:00:00Z",
+            "active_session_id": null,
+            "session_count": 1
+        }
+    ],
+    "activity_evaluations": [
+        {
+            "id": 1,
+            "activity_id": 2,
+            "user_id": "user-student-1",
+            "course_run_id": 1,
+            "evaluated_by": "user-manager-1",
+            "score": "85",
+            "max_score": "100",
+            "feedback": "Excellent implementation with good documentation",
+            "criteria_data": null,
+            "evaluated_at": "2024-11-16T14:00:00Z",
+            "updated_at": "2024-11-16T14:00:00Z",
+            "scaled_marks": null
+        },
+        {
+            "id": 2,
+            "activity_id": 1,
+            "user_id": "user-student-1",
+            "course_run_id": 1,
+            "evaluated_by": "user-manager-1",
+            "score": "4",
+            "max_score": "4",
+            "feedback": "Perfect score!",
+            "criteria_data": null,
+            "evaluated_at": "2024-11-10T10:00:00Z",
+            "updated_at": "2024-11-10T10:00:00Z",
+            "scaled_marks": null
+        },
+        {
+            "id": 3,
+            "activity_id": 1,
+            "user_id": "user-student-2",
+            "course_run_id": 1,
+            "evaluated_by": "user-manager-1",
+            "score": "2",
+            "max_score": "4",
+            "feedback": "Review OOP concepts",
+            "criteria_data": null,
+            "evaluated_at": "2024-11-11T11:00:00Z",
+            "updated_at": "2024-11-11T11:00:00Z",
+            "scaled_marks": null
+        }
+    ],
+    "student_run_activity_overrides": [
+        {
+            "id": 1,
+            "user_id": "user-student-3",
+            "course_run_id": 1,
+            "course_activity_id": 1,
+            "new_deadline": "2024-12-20T23:59:59Z",
+            "reason": "Medical leave extension",
+            "set_by": "user-manager-1",
+            "created_at": "2024-11-15T09:00:00Z",
+            "is_evaluated": 0
+        },
+        {
+            "id": 2,
+            "user_id": "user-student-2",
+            "course_run_id": 1,
+            "course_activity_id": 2,
+            "new_deadline": "2024-12-25T23:59:59Z",
+            "reason": "Redo opportunity granted",
+            "set_by": "user-manager-2",
+            "created_at": "2024-11-18T10:00:00Z",
+            "is_evaluated": 0
+        }
+    ],
+    "notification_records": [
+        {
+            "id": 1,
+            "user_id": "user-student-1",
+            "device_id": "device-alice-phone",
+            "device_type": "mobile",
+            "device_name": "Alice's iPhone",
+            "is_active": 1,
+            "subscription": "{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/alice\",\"keys\":{}}",
+            "created_at": "2024-09-01T08:00:00Z",
+            "updated_at": "2024-09-01T08:00:00Z"
+        },
+        {
+            "id": 2,
+            "user_id": "user-student-2",
+            "device_id": "device-bob-laptop",
+            "device_type": "web",
+            "device_name": "Bob's Laptop",
+            "is_active": 1,
+            "subscription": "{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/bob\",\"keys\":{}}",
+            "created_at": "2024-09-01T09:00:00Z",
+            "updated_at": "2024-09-01T09:00:00Z"
+        },
+        {
+            "id": 3,
+            "user_id": "user-manager-1",
+            "device_id": "device-sarah-tablet",
+            "device_type": "mobile",
+            "device_name": "Sarah's iPad",
+            "is_active": 1,
+            "subscription": "{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/sarah\",\"keys\":{}}",
+            "created_at": "2024-08-15T10:00:00Z",
+            "updated_at": "2024-08-15T10:00:00Z"
+        }
+    ],
+    "test_scenarios": {
+        "student_deadline_notification": {
+            "description": "Test that students in a run receive deadline notifications 2 hours before deadline",
+            "expected_recipients": [
+                "user-student-1",
+                "user-student-2",
+                "user-student-3"
+            ],
+            "not_expected": [
+                "user-student-4",
+                "user-student-5",
+                "user-manager-1"
+            ],
+            "test_payload": {
+                "courseActivityId": 1,
+                "runId": 1,
+                "deadline": "2024-12-15T23:59:59Z"
+            }
+        },
+        "manager_deadline_warning": {
+            "description": "Test that course managers receive deadline warnings 30 minutes before deadline",
+            "expected_recipients": ["user-manager-1", "user-manager-2"],
+            "not_expected": ["user-student-1", "user-student-2"],
+            "test_payload": {
+                "courseActivityId": 1,
+                "runId": 1,
+                "deadline": "2024-12-15T23:59:59Z"
+            }
+        },
+        "score_published_notification": {
+            "description": "Test that students in a run receive notifications when scores are published",
+            "expected_recipients": [
+                "user-student-1",
+                "user-student-2",
+                "user-student-3"
+            ],
+            "not_expected": ["user-student-4", "user-manager-1"],
+            "test_payload": {
+                "courseActivityId": 1,
+                "runId": 1
+            }
+        },
+        "activity_posted_notification": {
+            "description": "Test that all students in a group receive notifications when new activity is posted",
+            "expected_recipients": ["user-student-4", "user-student-5"],
+            "not_expected": [
+                "user-student-1",
+                "user-student-2",
+                "user-student-3"
+            ],
+            "test_payload": {
+                "courseActivityId": 6,
+                "runId": 3
+            }
+        },
+        "redo_enabled_notification": {
+            "description": "Test that specific student receives notification when redo is enabled",
+            "expected_recipients": ["user-student-2"],
+            "not_expected": [
+                "user-student-1",
+                "user-student-3",
+                "user-manager-1"
+            ],
+            "test_payload": {
+                "userId": "user-student-2",
+                "activityId": 2,
+                "newDeadline": "2024-12-25T23:59:59Z",
+                "runId": 1
+            }
+        },
+        "added_to_group_notification": {
+            "description": "Test that a student receives notification when added to a group",
+            "expected_recipients": ["user-student-1"],
+            "not_expected": ["user-student-2", "user-manager-1"],
+            "test_payload": {
+                "userId": "user-student-1",
+                "groupId": 1
+            }
+        },
+        "new_document_notification": {
+            "description": "Test that students in run and course managers receive notifications for new documents",
+            "expected_recipients": [
+                "user-student-4",
+                "user-student-5",
+                "user-manager-2"
+            ],
+            "not_expected": ["user-student-1", "user-manager-1"],
+            "test_payload": {
+                "runId": 3,
+                "documentName": "Lecture Notes Week 5"
+            }
+        },
+        "missed_deadline_notification": {
+            "description": "Test that students who missed deadline receive notifications (excluding those who submitted)",
+            "expected_recipients": ["user-student-3"],
+            "not_expected": ["user-student-1", "user-student-2"],
+            "test_payload": {
+                "courseActivityId": 2,
+                "runId": 1,
+                "deadline": "2024-12-22T23:59:59Z"
+            },
+            "notes": "user-student-1 and user-student-2 have submissions, user-student-3 doesn't"
+        },
+        "group_isolation_student_deadline": {
+            "description": "Test that ONLY students in Group 1 (CS Batch) receive notifications for Run 1 activities, NOT students from Group 2 (DS Batch)",
+            "expected_recipients": [
+                "user-student-1",
+                "user-student-2",
+                "user-student-3"
+            ],
+            "not_expected": ["user-student-4", "user-student-5"],
+            "test_payload": {
+                "courseActivityId": 1,
+                "runId": 1,
+                "deadline": "2024-12-15T23:59:59Z"
+            },
+            "notes": "Group 1 (students 1,2,3) is for Run 1. Group 2 (students 4,5) should NOT receive notifications for Run 1."
+        },
+        "group_isolation_activity_posted": {
+            "description": "Test that ONLY students in Group 2 (DS Batch) receive notifications for Run 3 activities, NOT students from Group 1",
+            "expected_recipients": ["user-student-4", "user-student-5"],
+            "not_expected": [
+                "user-student-1",
+                "user-student-2",
+                "user-student-3"
+            ],
+            "test_payload": {
+                "courseActivityId": 6,
+                "runId": 3
+            },
+            "notes": "Run 3 is for Group 2 (ML Spring 2024). Only Group 2 students should receive activity posted notifications."
+        },
+        "manager_course_isolation_deadline_warning": {
+            "description": "Test that ONLY managers enrolled in Course 1 receive deadline warnings, NOT managers of other courses",
+            "expected_recipients": ["user-manager-1", "user-manager-2"],
+            "not_expected": ["user-student-1", "user-student-4"],
+            "test_payload": {
+                "courseActivityId": 1,
+                "runId": 1,
+                "deadline": "2024-12-15T23:59:59Z"
+            },
+            "notes": "Course 1 has managers: user-manager-1 and user-manager-2. This should NOT notify students or managers of other courses."
+        },
+        "manager_course_isolation_multiple_courses": {
+            "description": "Test that manager-1 receives notifications for Course 1 and Course 2, but manager-2 only receives for Course 1 and Course 3",
+            "expected_recipients": ["user-manager-1"],
+            "not_expected": ["user-manager-2", "user-student-1"],
+            "test_payload": {
+                "courseActivityId": 4,
+                "runId": 2,
+                "deadline": "2024-12-13T23:59:59Z"
+            },
+            "notes": "Course 2 (Algorithms) only has manager-1. Manager-2 manages Course 1 and 3, but NOT Course 2."
+        },
+        "cross_group_no_leakage_scores": {
+            "description": "Test that score published notifications for Run 3 (Group 2) do NOT leak to Group 1 students",
+            "expected_recipients": ["user-student-4", "user-student-5"],
+            "not_expected": [
+                "user-student-1",
+                "user-student-2",
+                "user-student-3"
+            ],
+            "test_payload": {
+                "courseActivityId": 6,
+                "runId": 3
+            },
+            "notes": "Run 3 belongs to Group 2 (DS Batch). Group 1 students should never receive these notifications."
+        },
+        "facilitator_post_deadline_summary_isolation": {
+            "description": "Test that only managers of Course 3 receive post-deadline summary, not managers of other courses",
+            "expected_recipients": ["user-manager-2"],
+            "not_expected": [
+                "user-manager-1",
+                "user-student-4",
+                "user-student-5"
+            ],
+            "test_payload": {
+                "courseActivityId": 6,
+                "runId": 3,
+                "deadline": "2024-12-20T23:59:59Z"
+            },
+            "notes": "Activity 6 belongs to Course 3, which only has manager-2. Manager-1 should NOT receive this."
+        },
+        "multiple_groups_one_student": {
+            "description": "Test that student-3 who is in BOTH Group 1 and Group 3 receives notifications correctly based on run context",
+            "expected_recipients": ["user-student-3"],
+            "not_expected": [
+                "user-student-1",
+                "user-student-2",
+                "user-student-4",
+                "user-student-5"
+            ],
+            "test_payload": {
+                "courseActivityId": 1,
+                "runId": 4,
+                "deadline": "2024-12-15T23:59:59Z"
+            },
+            "notes": "Run 4 (Programming Winter 2024) is for Group 3. Student-3 is in both Group 1 and Group 3, but should only receive notification for Run 4 context."
+        }
     }
-  ],
-  "groups": [
-    {
-      "id": 1,
-      "name": "Computer Science Batch 2024",
-      "description": "CS students enrolled in 2024"
-    },
-    {
-      "id": 2,
-      "name": "Data Science Batch 2024",
-      "description": "DS students enrolled in 2024"
-    },
-    {
-      "id": 3,
-      "name": "Mathematics Batch 2024",
-      "description": "Math students enrolled in 2024"
-    }
-  ],
-  "group_members": [
-    {
-      "id": 1,
-      "group_id": 1,
-      "user_id": "user-student-1",
-      "role": "student"
-    },
-    {
-      "id": 2,
-      "group_id": 1,
-      "user_id": "user-student-2",
-      "role": "student"
-    },
-    {
-      "id": 3,
-      "group_id": 1,
-      "user_id": "user-student-3",
-      "role": "student"
-    },
-    {
-      "id": 4,
-      "group_id": 2,
-      "user_id": "user-student-4",
-      "role": "student"
-    },
-    {
-      "id": 5,
-      "group_id": 2,
-      "user_id": "user-student-5",
-      "role": "student"
-    },
-    {
-      "id": 6,
-      "group_id": 3,
-      "user_id": "user-student-3",
-      "role": "student"
-    }
-  ],
-  "courses": [
-    {
-      "id": 1,
-      "name": "Introduction to Programming",
-      "description": "Learn the basics of programming",
-      "created_by": "user-admin-1"
-    },
-    {
-      "id": 2,
-      "name": "Advanced Algorithms",
-      "description": "Deep dive into complex algorithms",
-      "created_by": "user-admin-1"
-    },
-    {
-      "id": 3,
-      "name": "Machine Learning Fundamentals",
-      "description": "Introduction to ML concepts",
-      "created_by": "user-manager-1"
-    }
-  ],
-  "course_managers": [
-    {
-      "id": 1,
-      "course_id": 1,
-      "user_id": "user-manager-1"
-    },
-    {
-      "id": 2,
-      "course_id": 1,
-      "user_id": "user-manager-2"
-    },
-    {
-      "id": 3,
-      "course_id": 2,
-      "user_id": "user-manager-1"
-    },
-    {
-      "id": 4,
-      "course_id": 3,
-      "user_id": "user-manager-2"
-    }
-  ],
-  "activities": [
-    {
-      "id": 1,
-      "type": "quiz",
-      "created_by": "user-admin-1",
-      "is_locked": 1,
-      "published": 0,
-      "is_graded": 1,
-      "requires_seb": 0,
-      "payload": "{\"title\":\"Introduction Quiz\",\"introduction\":\"Test your basic programming knowledge\",\"questions\":[{\"id\":\"q1\",\"question\":\"What is a variable?\",\"options\":[\"A container for data\",\"A function\",\"A loop\",\"A condition\"],\"correctOptionIndex\":0,\"marks\":2},{\"id\":\"q2\",\"question\":\"What does OOP stand for?\",\"options\":[\"Object Oriented Programming\",\"Only One Program\",\"Open Operating Protocol\",\"Organized Output Process\"],\"correctOptionIndex\":0,\"marks\":2}]}"
-    },
-    {
-      "id": 2,
-      "type": "assignment",
-      "created_by": "user-admin-1",
-      "is_locked": 0,
-      "published": 0,
-      "is_graded": 1,
-      "requires_seb": 0,
-      "payload": "{\"title\":\"Build a Calculator\",\"description\":\"Create a basic calculator application\",\"submissionOptions\":[\"file\",\"link\"],\"deadline\":\"2024-12-31T23:59:59Z\"}"
-    },
-    {
-      "id": 3,
-      "type": "exam",
-      "created_by": "user-manager-1",
-      "is_locked": 1,
-      "published": 0,
-      "is_graded": 1,
-      "requires_seb": 1,
-      "payload": "{\"title\":\"Midterm Exam\",\"description\":\"Comprehensive midterm examination\",\"deadline\":\"2024-12-15T14:00:00Z\",\"duration\":120,\"questions\":[{\"id\":\"e1\",\"type\":\"short-answer\",\"question\":\"Explain polymorphism\",\"marks\":10,\"order\":1},{\"id\":\"e2\",\"type\":\"long-answer\",\"question\":\"Describe the software development lifecycle\",\"marks\":20,\"order\":2}]}"
-    },
-    {
-      "id": 4,
-      "type": "reading",
-      "created_by": "user-manager-1",
-      "is_locked": 0,
-      "published": 0,
-      "is_graded": 0,
-      "requires_seb": 0,
-      "payload": "{\"title\":\"Introduction to Data Structures\",\"content\":\"# Data Structures\\n\\nThis reading material covers fundamental data structures...\",\"links\":[{\"url\":\"https://example.com/ds\",\"description\":\"Additional resources\"}]}"
-    },
-    {
-      "id": 5,
-      "type": "lecture",
-      "created_by": "user-manager-2",
-      "is_locked": 0,
-      "published": 0,
-      "is_graded": 0,
-      "requires_seb": 0,
-      "payload": "{\"title\":\"Neural Networks Basics\",\"description\":\"Introduction to neural networks\",\"videoUrl\":\"https://example.com/video/nn-basics\",\"durationSeconds\":3600,\"transcript\":\"Welcome to neural networks...\",\"links\":[]}"
-    },
-    {
-      "id": 6,
-      "type": "assignment",
-      "created_by": "user-manager-1",
-      "is_locked": 0,
-      "published": 1,
-      "published_at": "2024-11-20T10:00:00Z",
-      "is_graded": 1,
-      "requires_seb": 0,
-      "payload": "{\"title\":\"Data Analysis Project\",\"description\":\"Analyze the provided dataset\",\"submissionOptions\":[\"file\"],\"deadline\":\"2024-12-20T23:59:59Z\"}"
-    }
-  ],
-  "course_activities": [
-    {
-      "id": 1,
-      "course_id": 1,
-      "activity_id": 1,
-      "order": 1,
-      "start_offset_days": 0,
-      "end_offset_days": 7
-    },
-    {
-      "id": 2,
-      "course_id": 1,
-      "activity_id": 2,
-      "order": 2,
-      "start_offset_days": 7,
-      "end_offset_days": 21
-    },
-    {
-      "id": 3,
-      "course_id": 1,
-      "activity_id": 4,
-      "order": 3,
-      "start_offset_days": 0,
-      "end_offset_days": null
-    },
-    {
-      "id": 4,
-      "course_id": 2,
-      "activity_id": 3,
-      "order": 1,
-      "start_offset_days": 14,
-      "end_offset_days": 28
-    },
-    {
-      "id": 5,
-      "course_id": 3,
-      "activity_id": 5,
-      "order": 1,
-      "start_offset_days": 0,
-      "end_offset_days": null
-    },
-    {
-      "id": 6,
-      "course_id": 3,
-      "activity_id": 6,
-      "order": 2,
-      "start_offset_days": 7,
-      "end_offset_days": 30
-    }
-  ],
-  "course_runs": [
-    {
-      "id": 1,
-      "course_id": 1,
-      "group_id": 1,
-      "name": "Programming Fall 2024",
-      "start_date": "2024-09-01",
-      "end_date": "2024-12-31",
-      "view_format": "module_wise",
-      "is_evaluation_freezed": 0
-    },
-    {
-      "id": 2,
-      "course_id": 2,
-      "group_id": 1,
-      "name": "Algorithms Fall 2024",
-      "start_date": "2024-09-15",
-      "end_date": "2024-12-31",
-      "view_format": "module_wise",
-      "is_evaluation_freezed": 0
-    },
-    {
-      "id": 3,
-      "course_id": 3,
-      "group_id": 2,
-      "name": "ML Spring 2024",
-      "start_date": "2024-10-01",
-      "end_date": "2025-01-31",
-      "view_format": "topic_wise",
-      "is_evaluation_freezed": 0
-    },
-    {
-      "id": 4,
-      "course_id": 1,
-      "group_id": 3,
-      "name": "Programming Winter 2024",
-      "start_date": "2024-11-01",
-      "end_date": "2025-02-28",
-      "view_format": "module_wise",
-      "is_evaluation_freezed": 0
-    }
-  ],
-  "run_activity_overrides": [
-    {
-      "id": 1,
-      "course_run_id": 1,
-      "course_activity_id": 1,
-      "window_start": "2024-09-01T00:00:00Z",
-      "window_end": "2024-12-15T23:59:59Z",
-      "is_disabled": 0,
-      "is_locked": 1,
-      "published": 0,
-      "is_graded": 1,
-      "scale_marks": null,
-      "requires_seb": 0
-    },
-    {
-      "id": 2,
-      "course_run_id": 1,
-      "course_activity_id": 2,
-      "window_start": "2024-09-08T00:00:00Z",
-      "window_end": "2024-12-22T23:59:59Z",
-      "is_disabled": 0,
-      "is_locked": 0,
-      "published": 0,
-      "is_graded": 1,
-      "scale_marks": null,
-      "requires_seb": 0
-    },
-    {
-      "id": 3,
-      "course_run_id": 2,
-      "course_activity_id": 4,
-      "window_start": "2024-09-15T00:00:00Z",
-      "window_end": "2024-12-13T23:59:59Z",
-      "is_disabled": 0,
-      "is_locked": 1,
-      "published": 0,
-      "is_graded": 1,
-      "scale_marks": null,
-      "requires_seb": 1
-    },
-    {
-      "id": 4,
-      "course_run_id": 3,
-      "course_activity_id": 6,
-      "window_start": "2024-10-08T00:00:00Z",
-      "window_end": "2024-12-20T23:59:59Z",
-      "is_disabled": 0,
-      "is_locked": 0,
-      "published": 0,
-      "is_graded": 1,
-      "scale_marks": "80",
-      "requires_seb": 0
-    }
-  ],
-  "assignment_submissions": [
-    {
-      "id": 1,
-      "activity_id": 2,
-      "user_id": "user-student-1",
-      "course_run_id": 1,
-      "submission_type": "file",
-      "file_url": "https://example.com/submissions/student1-calc.zip",
-      "description": "Calculator implementation",
-      "submitted_at": "2024-11-15T10:30:00Z",
-      "reviewed": 1,
-      "feedback": "Great work! Well structured code.",
-      "reviewed_at": "2024-11-16T14:00:00Z",
-      "reviewed_by": "user-manager-1"
-    },
-    {
-      "id": 2,
-      "activity_id": 2,
-      "user_id": "user-student-2",
-      "course_run_id": 1,
-      "submission_type": "link",
-      "link_url": "https://github.com/bobstudent/calculator",
-      "description": "GitHub repository",
-      "submitted_at": "2024-11-18T16:45:00Z",
-      "reviewed": 0
-    },
-    {
-      "id": 3,
-      "activity_id": 6,
-      "user_id": "user-student-4",
-      "course_run_id": 3,
-      "submission_type": "file",
-      "file_url": "https://example.com/submissions/student4-analysis.pdf",
-      "description": "Data analysis report",
-      "submitted_at": "2024-11-19T20:00:00Z",
-      "reviewed": 0
-    }
-  ],
-  "quiz_attempts": [
-    {
-      "id": 1,
-      "activity_id": 1,
-      "user_id": "user-student-1",
-      "course_run_id": 1,
-      "started_at": "2024-11-10T09:00:00Z",
-      "completed_at": "2024-11-10T09:15:00Z",
-      "answers": "[{\"questionId\":\"q1\",\"selectedOption\":0},{\"questionId\":\"q2\",\"selectedOption\":0}]",
-      "score": 4,
-      "scaled_marks": null,
-      "active_session_id": null,
-      "session_count": 0
-    },
-    {
-      "id": 2,
-      "activity_id": 1,
-      "user_id": "user-student-2",
-      "course_run_id": 1,
-      "started_at": "2024-11-11T10:00:00Z",
-      "completed_at": "2024-11-11T10:20:00Z",
-      "answers": "[{\"questionId\":\"q1\",\"selectedOption\":0},{\"questionId\":\"q2\",\"selectedOption\":1}]",
-      "score": 2,
-      "scaled_marks": null,
-      "active_session_id": null,
-      "session_count": 0
-    }
-  ],
-  "exam_submissions": [
-    {
-      "id": 1,
-      "activity_id": 3,
-      "user_id": "user-student-1",
-      "course_run_id": 2,
-      "activity_index": null,
-      "submitted_at": "2024-11-25T14:00:00Z",
-      "answers": "{\"e1\":\"Polymorphism is...\",\"e2\":\"SDLC includes planning, analysis...\"}",
-      "created_at": "2024-11-25T12:00:00Z",
-      "updated_at": "2024-11-25T14:00:00Z",
-      "active_session_id": null,
-      "session_count": 1
-    }
-  ],
-  "activity_evaluations": [
-    {
-      "id": 1,
-      "activity_id": 2,
-      "user_id": "user-student-1",
-      "course_run_id": 1,
-      "evaluated_by": "user-manager-1",
-      "score": "85",
-      "max_score": "100",
-      "feedback": "Excellent implementation with good documentation",
-      "criteria_data": null,
-      "evaluated_at": "2024-11-16T14:00:00Z",
-      "updated_at": "2024-11-16T14:00:00Z",
-      "scaled_marks": null
-    },
-    {
-      "id": 2,
-      "activity_id": 1,
-      "user_id": "user-student-1",
-      "course_run_id": 1,
-      "evaluated_by": "user-manager-1",
-      "score": "4",
-      "max_score": "4",
-      "feedback": "Perfect score!",
-      "criteria_data": null,
-      "evaluated_at": "2024-11-10T10:00:00Z",
-      "updated_at": "2024-11-10T10:00:00Z",
-      "scaled_marks": null
-    },
-    {
-      "id": 3,
-      "activity_id": 1,
-      "user_id": "user-student-2",
-      "course_run_id": 1,
-      "evaluated_by": "user-manager-1",
-      "score": "2",
-      "max_score": "4",
-      "feedback": "Review OOP concepts",
-      "criteria_data": null,
-      "evaluated_at": "2024-11-11T11:00:00Z",
-      "updated_at": "2024-11-11T11:00:00Z",
-      "scaled_marks": null
-    }
-  ],
-  "student_run_activity_overrides": [
-    {
-      "id": 1,
-      "user_id": "user-student-3",
-      "course_run_id": 1,
-      "course_activity_id": 1,
-      "new_deadline": "2024-12-20T23:59:59Z",
-      "reason": "Medical leave extension",
-      "set_by": "user-manager-1",
-      "created_at": "2024-11-15T09:00:00Z",
-      "is_evaluated": 0
-    },
-    {
-      "id": 2,
-      "user_id": "user-student-2",
-      "course_run_id": 1,
-      "course_activity_id": 2,
-      "new_deadline": "2024-12-25T23:59:59Z",
-      "reason": "Redo opportunity granted",
-      "set_by": "user-manager-2",
-      "created_at": "2024-11-18T10:00:00Z",
-      "is_evaluated": 0
-    }
-  ],
-  "notification_records": [
-    {
-      "id": 1,
-      "user_id": "user-student-1",
-      "device_id": "device-alice-phone",
-      "device_type": "mobile",
-      "device_name": "Alice's iPhone",
-      "is_active": 1,
-      "subscription": "{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/alice\",\"keys\":{}}",
-      "created_at": "2024-09-01T08:00:00Z",
-      "updated_at": "2024-09-01T08:00:00Z"
-    },
-    {
-      "id": 2,
-      "user_id": "user-student-2",
-      "device_id": "device-bob-laptop",
-      "device_type": "web",
-      "device_name": "Bob's Laptop",
-      "is_active": 1,
-      "subscription": "{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/bob\",\"keys\":{}}",
-      "created_at": "2024-09-01T09:00:00Z",
-      "updated_at": "2024-09-01T09:00:00Z"
-    },
-    {
-      "id": 3,
-      "user_id": "user-manager-1",
-      "device_id": "device-sarah-tablet",
-      "device_type": "mobile",
-      "device_name": "Sarah's iPad",
-      "is_active": 1,
-      "subscription": "{\"endpoint\":\"https://fcm.googleapis.com/fcm/send/sarah\",\"keys\":{}}",
-      "created_at": "2024-08-15T10:00:00Z",
-      "updated_at": "2024-08-15T10:00:00Z"
-    }
-  ],
-  "test_scenarios": {
-    "student_deadline_notification": {
-      "description": "Test that students in a run receive deadline notifications 2 hours before deadline",
-      "expected_recipients": ["user-student-1", "user-student-2", "user-student-3"],
-      "not_expected": ["user-student-4", "user-student-5", "user-manager-1"],
-      "test_payload": {
-        "courseActivityId": 1,
-        "runId": 1,
-        "deadline": "2024-12-15T23:59:59Z"
-      }
-    },
-    "manager_deadline_warning": {
-      "description": "Test that course managers receive deadline warnings 30 minutes before deadline",
-      "expected_recipients": ["user-manager-1", "user-manager-2"],
-      "not_expected": ["user-student-1", "user-student-2"],
-      "test_payload": {
-        "courseActivityId": 1,
-        "runId": 1,
-        "deadline": "2024-12-15T23:59:59Z"
-      }
-    },
-    "score_published_notification": {
-      "description": "Test that students in a run receive notifications when scores are published",
-      "expected_recipients": ["user-student-1", "user-student-2", "user-student-3"],
-      "not_expected": ["user-student-4", "user-manager-1"],
-      "test_payload": {
-        "courseActivityId": 1,
-        "runId": 1
-      }
-    },
-    "activity_posted_notification": {
-      "description": "Test that all students in a group receive notifications when new activity is posted",
-      "expected_recipients": ["user-student-4", "user-student-5"],
-      "not_expected": ["user-student-1", "user-student-2", "user-student-3"],
-      "test_payload": {
-        "courseActivityId": 6,
-        "runId": 3
-      }
-    },
-    "redo_enabled_notification": {
-      "description": "Test that specific student receives notification when redo is enabled",
-      "expected_recipients": ["user-student-2"],
-      "not_expected": ["user-student-1", "user-student-3", "user-manager-1"],
-      "test_payload": {
-        "userId": "user-student-2",
-        "activityId": 2,
-        "newDeadline": "2024-12-25T23:59:59Z",
-        "runId": 1
-      }
-    },
-    "added_to_group_notification": {
-      "description": "Test that a student receives notification when added to a group",
-      "expected_recipients": ["user-student-1"],
-      "not_expected": ["user-student-2", "user-manager-1"],
-      "test_payload": {
-        "userId": "user-student-1",
-        "groupId": 1
-      }
-    },
-    "new_document_notification": {
-      "description": "Test that students in run and course managers receive notifications for new documents",
-      "expected_recipients": ["user-student-4", "user-student-5", "user-manager-2"],
-      "not_expected": ["user-student-1", "user-manager-1"],
-      "test_payload": {
-        "runId": 3,
-        "documentName": "Lecture Notes Week 5"
-      }
-    },
-    "missed_deadline_notification": {
-      "description": "Test that students who missed deadline receive notifications (excluding those who submitted)",
-      "expected_recipients": ["user-student-3"],
-      "not_expected": ["user-student-1", "user-student-2"],
-      "test_payload": {
-        "courseActivityId": 2,
-        "runId": 1,
-        "deadline": "2024-12-22T23:59:59Z"
-      },
-      "notes": "user-student-1 and user-student-2 have submissions, user-student-3 doesn't"
-    },
-    "group_isolation_student_deadline": {
-      "description": "Test that ONLY students in Group 1 (CS Batch) receive notifications for Run 1 activities, NOT students from Group 2 (DS Batch)",
-      "expected_recipients": ["user-student-1", "user-student-2", "user-student-3"],
-      "not_expected": ["user-student-4", "user-student-5"],
-      "test_payload": {
-        "courseActivityId": 1,
-        "runId": 1,
-        "deadline": "2024-12-15T23:59:59Z"
-      },
-      "notes": "Group 1 (students 1,2,3) is for Run 1. Group 2 (students 4,5) should NOT receive notifications for Run 1."
-    },
-    "group_isolation_activity_posted": {
-      "description": "Test that ONLY students in Group 2 (DS Batch) receive notifications for Run 3 activities, NOT students from Group 1",
-      "expected_recipients": ["user-student-4", "user-student-5"],
-      "not_expected": ["user-student-1", "user-student-2", "user-student-3"],
-      "test_payload": {
-        "courseActivityId": 6,
-        "runId": 3
-      },
-      "notes": "Run 3 is for Group 2 (ML Spring 2024). Only Group 2 students should receive activity posted notifications."
-    },
-    "manager_course_isolation_deadline_warning": {
-      "description": "Test that ONLY managers enrolled in Course 1 receive deadline warnings, NOT managers of other courses",
-      "expected_recipients": ["user-manager-1", "user-manager-2"],
-      "not_expected": ["user-student-1", "user-student-4"],
-      "test_payload": {
-        "courseActivityId": 1,
-        "runId": 1,
-        "deadline": "2024-12-15T23:59:59Z"
-      },
-      "notes": "Course 1 has managers: user-manager-1 and user-manager-2. This should NOT notify students or managers of other courses."
-    },
-    "manager_course_isolation_multiple_courses": {
-      "description": "Test that manager-1 receives notifications for Course 1 and Course 2, but manager-2 only receives for Course 1 and Course 3",
-      "expected_recipients": ["user-manager-1"],
-      "not_expected": ["user-manager-2", "user-student-1"],
-      "test_payload": {
-        "courseActivityId": 4,
-        "runId": 2,
-        "deadline": "2024-12-13T23:59:59Z"
-      },
-      "notes": "Course 2 (Algorithms) only has manager-1. Manager-2 manages Course 1 and 3, but NOT Course 2."
-    },
-    "cross_group_no_leakage_scores": {
-      "description": "Test that score published notifications for Run 3 (Group 2) do NOT leak to Group 1 students",
-      "expected_recipients": ["user-student-4", "user-student-5"],
-      "not_expected": ["user-student-1", "user-student-2", "user-student-3"],
-      "test_payload": {
-        "courseActivityId": 6,
-        "runId": 3
-      },
-      "notes": "Run 3 belongs to Group 2 (DS Batch). Group 1 students should never receive these notifications."
-    },
-    "facilitator_post_deadline_summary_isolation": {
-      "description": "Test that only managers of Course 3 receive post-deadline summary, not managers of other courses",
-      "expected_recipients": ["user-manager-2"],
-      "not_expected": ["user-manager-1", "user-student-4", "user-student-5"],
-      "test_payload": {
-        "courseActivityId": 6,
-        "runId": 3,
-        "deadline": "2024-12-20T23:59:59Z"
-      },
-      "notes": "Activity 6 belongs to Course 3, which only has manager-2. Manager-1 should NOT receive this."
-    },
-    "multiple_groups_one_student": {
-      "description": "Test that student-3 who is in BOTH Group 1 and Group 3 receives notifications correctly based on run context",
-      "expected_recipients": ["user-student-3"],
-      "not_expected": ["user-student-1", "user-student-2", "user-student-4", "user-student-5"],
-      "test_payload": {
-        "courseActivityId": 1,
-        "runId": 4,
-        "deadline": "2024-12-15T23:59:59Z"
-      },
-      "notes": "Run 4 (Programming Winter 2024) is for Group 3. Student-3 is in both Group 1 and Group 3, but should only receive notification for Run 4 context."
-    }
-  }
 }

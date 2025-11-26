@@ -1,1 +1,1 @@
-console.log("Hello, World! This is the index.ts file.");
+console.log('Hello, World! This is the index.ts file.');

@@ -1,19 +1,19 @@
 interface EmailTemplateParams {
-  heading: string;
-  subheading: string;
-  body: string;
-  ctaText?: string;
-  ctaUrl?: string;
+    heading: string;
+    subheading: string;
+    body: string;
+    ctaText?: string;
+    ctaUrl?: string;
 }
 
 export function generateEmailTemplate({
-  heading,
-  subheading,
-  body,
-  ctaText = "Go to LearnX",
-  ctaUrl = "https://learnx.atriauniversity.in"
+    heading,
+    subheading,
+    body,
+    ctaText = 'Go to LearnX',
+    ctaUrl = 'https://learnx.atriauniversity.in',
 }: EmailTemplateParams): string {
-  return `
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -130,78 +130,90 @@ export function generateEmailTemplate({
 
 // Email template configurations based on email-template.md
 export const emailTemplates = {
-  activityPosted: (activityName: string, runName: string) => ({
-    subject: "New Activity Available in Your Course Run",
-    heading: "A New Activity Awaits You",
-    subheading: "Stay on track and keep learning.",
-    body: `
+    activityPosted: (activityName: string, runName: string) => ({
+        subject: 'New Activity Available in Your Course Run',
+        heading: 'A New Activity Awaits You',
+        subheading: 'Stay on track and keep learning.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 15px;">A new activity <strong>${activityName}</strong> has been added to <strong>${runName}</strong>.</p>
       <p>Visit your dashboard to check it out and continue your learning journey.</p>
-    `
-  }),
+    `,
+    }),
 
-  addedToGroup: (groupName: string) => ({
-    subject: "You've Been Added to a Group",
-    heading: "Group Access Granted",
-    subheading: "Stay organized with your course activities.",
-    body: `
+    addedToGroup: (groupName: string) => ({
+        subject: "You've Been Added to a Group",
+        heading: 'Group Access Granted',
+        subheading: 'Stay organized with your course activities.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 15px;">You've been added to the group <strong>${groupName}</strong>.</p>
       <p>Visit your dashboard to view group details.</p>
-    `
-  }),
+    `,
+    }),
 
-  deadlineSoon: (activityName: string, runName: string, deadline: string) => ({
-    subject: "Upcoming Activity Deadline",
-    heading: "Your Activity is Due Soon",
-    subheading: "Submit before the deadline to stay on track.",
-    body: `
+    deadlineSoon: (
+        activityName: string,
+        runName: string,
+        deadline: string,
+    ) => ({
+        subject: 'Upcoming Activity Deadline',
+        heading: 'Your Activity is Due Soon',
+        subheading: 'Submit before the deadline to stay on track.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 15px;">Your activity <strong>${activityName}</strong> for <strong>${runName}</strong> is due on <strong>${deadline}</strong>.</p>
       <p>Please ensure you submit it before the deadline.</p>
-    `
-  }),
+    `,
+    }),
 
-  newDocument: (documentName: string, courseName: string) => ({
-    subject: "New Document Available in Your Course",
-    heading: "A New Resource Has Been Shared",
-    subheading: "Access the latest material for your course.",
-    body: `
+    newDocument: (documentName: string, courseName: string) => ({
+        subject: 'New Document Available in Your Course',
+        heading: 'A New Resource Has Been Shared',
+        subheading: 'Access the latest material for your course.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 15px;">A new document <strong>${documentName}</strong> has been added to <strong>${courseName}</strong>.</p>
       <p>Visit your dashboard to review it.</p>
-    `
-  }),
+    `,
+    }),
 
-  adminDeadline: (activityName: string, runName: string, deadline: string) => ({
-    subject: "Upcoming Deadline in Your Course Run",
-    heading: "Activity Deadline Approaching",
-    subheading: "Monitor learner progress closely.",
-    body: `
+    adminDeadline: (
+        activityName: string,
+        runName: string,
+        deadline: string,
+    ) => ({
+        subject: 'Upcoming Deadline in Your Course Run',
+        heading: 'Activity Deadline Approaching',
+        subheading: 'Monitor learner progress closely.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 15px;">The activity <strong>${activityName}</strong> in <strong>${runName}</strong> is due in 30 minutes (at <strong>${deadline}</strong>).</p>
       <p>Please ensure learners are on track.</p>
-    `
-  }),
+    `,
+    }),
 
-  redoEnabled: (activityName: string, deadline: string, courseInfo: string) => ({
-    subject: "Redo Enabled for Your Activity",
-    heading: "You Can Redo Your Activity",
-    subheading: "A new chance to complete your work.",
-    body: `
+    redoEnabled: (
+        activityName: string,
+        deadline: string,
+        courseInfo: string,
+    ) => ({
+        subject: 'Redo Enabled for Your Activity',
+        heading: 'You Can Redo Your Activity',
+        subheading: 'A new chance to complete your work.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 10px;">Redo has been enabled for <strong>${activityName}</strong>.</p>
       <p style="margin-bottom: 15px;">Your new submission deadline is <strong>${deadline}</strong>.</p>
       <p>Please go through the <strong>${courseInfo}</strong> and submit your response.</p>
-    `
-  }),
+    `,
+    }),
 
-  scorePublished: (activityName: string, runName: string) => ({
-    subject: "Your Score is Now Available",
-    heading: "Score Published for Your Activity",
-    subheading: "Review your performance in the course.",
-    body: `
+    scorePublished: (activityName: string, runName: string) => ({
+        subject: 'Your Score is Now Available',
+        heading: 'Score Published for Your Activity',
+        subheading: 'Review your performance in the course.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 15px;">Your score for <strong>${activityName}</strong> in <strong>${runName}</strong> has been published.</p>
       <p style="margin-bottom: 15px; font-weight: bold;">How to check your score:</p>
@@ -211,25 +223,30 @@ export const emailTemplates = {
         <li style="margin-bottom: 8px;">Choose the appropriate course run.</li>
         <li>Find the <strong>${activityName}</strong> in the list to view your score.</li>
       </ol>
-    `
-  }),
+    `,
+    }),
 
-  missedDeadline: (activityName: string, runName: string) => ({
-    subject: "Missed Deadline Notification",
-    heading: "You Missed a Deadline",
-    subheading: "Please contact your instructor for next steps.",
-    body: `
+    missedDeadline: (activityName: string, runName: string) => ({
+        subject: 'Missed Deadline Notification',
+        heading: 'You Missed a Deadline',
+        subheading: 'Please contact your instructor for next steps.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 15px;">You missed the deadline for <strong>${activityName}</strong> in <strong>${runName}</strong>.</p>
       <p>Please reach out to your instructor for guidance on how to proceed.</p>
-    `
-  }),
+    `,
+    }),
 
-  facilitatorSummary: (activityName: string, runName: string, submitted: number, notSubmitted: number) => ({
-    subject: "Post-Deadline Summary for Your Course Run",
-    heading: "Activity Deadline Summary",
-    subheading: "Review student submission status.",
-    body: `
+    facilitatorSummary: (
+        activityName: string,
+        runName: string,
+        submitted: number,
+        notSubmitted: number,
+    ) => ({
+        subject: 'Post-Deadline Summary for Your Course Run',
+        heading: 'Activity Deadline Summary',
+        subheading: 'Review student submission status.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 15px;">The deadline for <strong>${activityName}</strong> in <strong>${runName}</strong> has passed.</p>
       <p style="margin-bottom: 15px;"><strong>Submission Summary:</strong></p>
@@ -238,17 +255,21 @@ export const emailTemplates = {
         <li>Students who did not submit: <strong>${notSubmitted}</strong></li>
       </ul>
       <p>Please review and take necessary actions.</p>
-    `
-  }),
+    `,
+    }),
 
-  courseRunFinalize: (courseName: string, runName: string, endDate: string) => ({
-    subject: "Course Run Ending Soon - Action Required",
-    heading: "Time to Finalize Your Course Run",
-    subheading: "Ensure all grading is completed.",
-    body: `
+    courseRunFinalize: (
+        courseName: string,
+        runName: string,
+        endDate: string,
+    ) => ({
+        subject: 'Course Run Ending Soon - Action Required',
+        heading: 'Time to Finalize Your Course Run',
+        subheading: 'Ensure all grading is completed.',
+        body: `
       <p style="margin-bottom: 15px;">Hello,</p>
       <p style="margin-bottom: 15px;">The course run <strong>${runName}</strong> for <strong>${courseName}</strong> is ending on <strong>${endDate}</strong>.</p>
       <p>Please ensure all activities are graded and finalized before the end date.</p>
-    `
-  })
+    `,
+    }),
 };
