@@ -1,6 +1,7 @@
 import { task } from '@trigger.dev/sdk/v3';
 import { NotificationService } from '../lib/notify-service';
 import pool from '../lib/db';
+import { emailTemplates } from '../lib/email-template';
 
 export const scheduleStudentDeadlineNotification = task({
   id: 'schedule-student-deadline-notification',
@@ -10,8 +11,16 @@ export const scheduleStudentDeadlineNotification = task({
        JOIN "course-activities" ca ON ca.activity_id = a.id
        WHERE ca.id = $1`, [payload.courseActivityId]
     );
-    const activityType = activityRes.rows[0]?.type;
-    if (activityType !== 'quiz' && activityType !== 'assignment') return;
+    
+    if (!activityRes.rows.length) {
+      throw new Error(`Activity not found for courseActivityId: ${payload.courseActivityId}`);
+    }
+    
+    const activityType = activityRes.rows[0].type;
+    if (activityType !== 'quiz' && activityType !== 'assignment' && activityType !== 'exam') {
+      console.log(`Skipping deadline notification scheduling for activity type: ${activityType}, courseActivityId: ${payload.courseActivityId}`);
+      return;
+    }
 
     await sendStudentDeadlineNotification.trigger(
       { courseActivityId: payload.courseActivityId, runId: payload.runId, deadline: payload.deadline },
@@ -28,34 +37,87 @@ export const sendStudentDeadlineNotification = task({
   id: 'send-student-deadline-notification',
   run: async (payload: { courseActivityId: number; runId: number; deadline: string }) => {
     const activityRes = await pool.query(
-      `SELECT a.type, a.payload, ca.order, c.name as course_name
+      `SELECT a.id as activity_id, a.type, a.payload, ca.order, c.id as course_id, c.name as course_name
        FROM activities a
        JOIN "course-activities" ca ON ca.activity_id = a.id
        JOIN courses c ON ca.course_id = c.id
        WHERE ca.id = $1`, [payload.courseActivityId]
     );
     const activity = activityRes.rows[0];
-    let activityName = activity?.type;
+    
+    if (!activity) {
+      throw new Error(`Activity not found for courseActivityId: ${payload.courseActivityId}`);
+    }
+    
+    let parsed;
     try {
-      const parsed = JSON.parse(activity?.payload || '{}');
-      if (parsed.name) activityName = parsed.name;
-    } catch {}
-    const courseName = activity?.course_name || 'your course';
+      parsed = JSON.parse(activity.payload || '{}');
+    } catch (error) {
+      throw new Error(`Failed to parse activity payload for courseActivityId ${payload.courseActivityId}: ${error}`);
+    }
+    
+    const activityName = parsed.title;
+    if (!activityName) {
+      throw new Error(`Activity title not found in payload for courseActivityId: ${payload.courseActivityId}`);
+    }
+    
+    const runRes = await pool.query(
+      `SELECT group_id, name FROM "course-runs" WHERE id = $1`, [payload.runId]
+    );
+    const groupId = runRes.rows[0]?.group_id;
+    const runName = runRes.rows[0]?.name;
+    if (!groupId) {
+      throw new Error(`Group not found for runId: ${payload.runId}`);
+    }
+    if (!runName) {
+      throw new Error(`Run name not found for runId: ${payload.runId}`);
+    }
+    
     const studentsRes = await pool.query(
       `SELECT u.id, u.name FROM "group-members" gm
        JOIN users u ON gm.user_id = u.id
-       WHERE gm.group_id = $1`, [payload.runId]
+       WHERE gm.group_id = $1 AND gm.role = 'student'`, [groupId]
     );
-const notificationService = new NotificationService(pool);
 
-    await Promise.allSettled(studentsRes.rows.map(async (student) => {
-      await notificationService.sendPushNotification(student.id, {
-        title: `Assignment "${activityName}" is due soon in "${courseName}"`,
-        body: `Hi ${student.name || ''}, your assignment "${activityName}" for "${courseName}" is due at ${payload.deadline}. Please make sure to submit before the deadline!`,
-        data: { courseActivityId: payload.courseActivityId, deadline: payload.deadline }
-      });
-      await notificationService.sendEmailNotification(student.id, `Assignment "${activityName}" is due soon in "${courseName}"`, `Hi ${student.name || ''}, your assignment "${activityName}" for "${courseName}" is due at ${payload.deadline}. Please make sure to submit before the deadline!`);
+    const notificationService = new NotificationService(pool);
+
+
+    const results = await Promise.allSettled(studentsRes.rows.map(async (student) => {
+      try {
+        const template = emailTemplates.deadlineSoon(activityName, runName, payload.deadline);
+        
+        try {
+          await notificationService.sendPushNotification(student.id, {
+            title: `Assignment "${activityName}" is due soon in "${runName}"`,
+            body: `Hi ${student.name || ''}, your assignment "${activityName}" for "${runName}" is due at ${payload.deadline}. Please make sure to submit before the deadline!`,
+            data: { courseActivityId: payload.courseActivityId, deadline: payload.deadline }
+          });
+        } catch (pushError) {
+          console.error(` Failed to send push notification to studentId: ${student.id}`, pushError);
+        }
+        
+        await notificationService.sendEmailNotification(
+          student.id,
+          template.subject,
+          template.heading,
+          template.subheading,
+          template.body
+        );
+      } catch (error) {
+        console.error(` Failed to notify studentId: ${student.id}`, error);
+        throw error;
+      }
     }));
+    
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    
+    if (failed > 0) {
+      const errors = results
+        .filter(r => r.status === 'rejected')
+        .map((r: any) => r.reason);
+      console.error('Failed notifications:', errors);
+    }
   }
 });
 
@@ -67,8 +129,16 @@ export const scheduleManagerDeadlineWarning = task({
        JOIN "course-activities" ca ON ca.activity_id = a.id
        WHERE ca.id = $1`, [payload.courseActivityId]
     );
-    const activityType = activityRes.rows[0]?.type;
-    if (activityType !== 'quiz' && activityType !== 'assignment') return;
+    
+    if (!activityRes.rows.length) {
+      throw new Error(`Activity not found for courseActivityId: ${payload.courseActivityId}`);
+    }
+    
+    const activityType = activityRes.rows[0].type;
+    if (activityType !== 'quiz' && activityType !== 'assignment' && activityType !== 'exam') {
+      console.log(`Skipping manager warning scheduling for activity type: ${activityType}, courseActivityId: ${payload.courseActivityId}`);
+      return;
+    }
 
     await sendManagerDeadlineWarning.trigger(
       { courseActivityId: payload.courseActivityId, runId: payload.runId, deadline: payload.deadline },
@@ -85,48 +155,106 @@ export const sendManagerDeadlineWarning = task({
   id: 'send-manager-deadline-warning',
   run: async (payload: { courseActivityId: number; runId: number; deadline: string }) => {
     const activityRes = await pool.query(
-      `SELECT a.type, a.payload, ca.order, c.name as course_name
+      `SELECT a.id as activity_id, a.type, a.payload, ca.order, c.id as course_id, c.name as course_name
        FROM activities a
        JOIN "course-activities" ca ON ca.activity_id = a.id
        JOIN courses c ON ca.course_id = c.id
        WHERE ca.id = $1`, [payload.courseActivityId]
     );
     const activity = activityRes.rows[0];
-    let activityName = activity?.type;
+    
+    if (!activity) {
+      throw new Error(`Activity not found for courseActivityId: ${payload.courseActivityId}`);
+    }
+    
+    let parsed;
     try {
-      const parsed = JSON.parse(activity?.payload || '{}');
-      if (parsed.name) activityName = parsed.name;
-    } catch {}
-    const courseName = activity?.course_name || 'the course';
+      parsed = JSON.parse(activity.payload || '{}');
+    } catch (error) {
+      throw new Error(`Failed to parse activity payload for courseActivityId ${payload.courseActivityId}: ${error}`);
+    }
+    
+    const activityName = parsed.title;
+    if (!activityName) {
+      throw new Error(`Activity title not found in payload for courseActivityId: ${payload.courseActivityId}`);
+    }
+    
+    const courseId = activity.course_id;
+    
+    if (!courseId) {
+      throw new Error(`Course ID not found for courseActivityId: ${payload.courseActivityId}`);
+    }
+    
     const runRes = await pool.query(
-      `SELECT course_id FROM "course-runs" WHERE id = $1`, [payload.runId]
+      `SELECT name FROM "course-runs" WHERE id = $1`, [payload.runId]
     );
-    const courseId = runRes.rows[0]?.course_id;
-    if (!courseId) return;
+    const runName = runRes.rows[0]?.name;
+    if (!runName) {
+      throw new Error(`Run name not found for runId: ${payload.runId}`);
+    }
+    
     const managersRes = await pool.query(
       `SELECT u.id, u.name FROM course_managers cm
        JOIN users u ON cm.user_id = u.id
        WHERE cm.course_id = $1`, [courseId]
     );
+    
+    if (!managersRes.rows.length) {
+      console.log(`No managers found for courseId: ${courseId}`);
+      return;
+    }
+    
     const notificationService = new NotificationService(pool);
 
-    await Promise.allSettled(managersRes.rows.map(async (manager) => {
-      await notificationService.sendPushNotification(manager.id, {
-        title: `Upcoming deadline for "${activityName}" in "${courseName}"`,
-        body: `Hi ${manager.name || ''}, the activity "${activityName}" in "${courseName}" is due in 30 minutes (at ${payload.deadline}).`,
-        data: { courseActivityId: payload.courseActivityId, deadline: payload.deadline }
-      });
-      await notificationService.sendEmailNotification(manager.id, `Upcoming deadline for "${activityName}" in "${courseName}"`, `Hi ${manager.name || ''}, the activity "${activityName}" in "${courseName}" is due in 30 minutes (at ${payload.deadline}).`);
+    const results = await Promise.allSettled(managersRes.rows.map(async (manager) => {
+      try {
+        const template = emailTemplates.adminDeadline(activityName, runName, payload.deadline);
+        
+        try {
+          await notificationService.sendPushNotification(manager.id, {
+            title: `Upcoming deadline for "${activityName}" in "${runName}"`,
+            body: `Hi ${manager.name || ''}, the activity "${activityName}" in "${runName}" is due in 30 minutes (at ${payload.deadline}).`,
+            data: { courseActivityId: payload.courseActivityId, deadline: payload.deadline }
+          });
+        } catch (pushError) {
+          console.error(` Failed to send push notification to manager: ${manager.id}`, pushError);
+        }
+        
+        await notificationService.sendEmailNotification(
+          manager.id,
+          template.subject,
+          template.heading,
+          template.subheading,
+          template.body
+        );
+      } catch (error) {
+        console.error(` Failed to notify manager: ${manager.id}`, error);
+        throw error;
+      }
     }));
+    
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    
+    if (failed > 0) {
+      const errors = results
+        .filter(r => r.status === 'rejected')
+        .map((r: any) => r.reason);
+      console.error('Failed manager notifications:', errors);
+    }
   }
 });
 
 export const notifyScorePublished = task({
     id: 'notify-score-published',
-    run: async (payload: { courseActivityId: string; runId: string }) => {
+    run: async (payload: { courseActivityId: number; runId: number }) => {
         const { courseActivityId, runId } = payload;
         const res = await pool.query(
-          `SELECT a.type, a.payload, ca.id as course_activity_id, c.name as course_name, cr.name as run_name, g.name as group_name
+          `SELECT a.id as activity_id, a.type, a.payload, 
+                  ca.id as course_activity_id, 
+                  c.id as course_id, c.name as course_name, 
+                  cr.name as run_name, cr.group_id,
+                  g.name as group_name
            FROM activities a
            JOIN "course-activities" ca ON ca.activity_id = a.id
            JOIN courses c ON ca.course_id = c.id
@@ -135,49 +263,96 @@ export const notifyScorePublished = task({
            WHERE ca.id = $1`, [courseActivityId, runId]
         );
         const row = res.rows[0];
-        let activityName = row?.type || 'Activity';
+        
+        if (!row) {
+          throw new Error(`Activity data not found for courseActivityId: ${courseActivityId}, runId: ${runId}`);
+        }
+        
+        let parsed;
         try {
-          const parsed = JSON.parse(row?.payload || '{}');
-          if (parsed.name) activityName = parsed.name;
-        } catch {}
-        const courseName = row?.course_name ;
-        const runName = row?.run_name ;
-        const groupName = row?.group_name ;
+          parsed = JSON.parse(row.payload || '{}');
+        } catch (error) {
+          throw new Error(`Failed to parse activity payload for courseActivityId ${courseActivityId}: ${error}`);
+        }
+        
+        const activityName = parsed.title;
+        if (!activityName) {
+          throw new Error(`Activity title not found in payload for courseActivityId: ${courseActivityId}`);
+        }
+        
+        const runName = row.run_name;
+        const groupId = row.group_id;
+        
+        if (!runName) {
+          throw new Error(`Run name not found for runId: ${runId}`);
+        }
+        if (!groupId) {
+          throw new Error(`Group not found for runId: ${runId}`);
+        }
 
         const studentsRes = await pool.query(
           `SELECT u.id, u.name FROM "group-members" gm
            JOIN users u ON gm.user_id = u.id
-           WHERE gm.group_id = (SELECT group_id FROM "course-runs" WHERE id = $1) AND gm.role = 'student'`, [runId]
+           WHERE gm.group_id = $1 AND gm.role = 'student'`, [groupId]
         );
+        
+        if (!studentsRes.rows.length) {
+          console.log(`No students found in group: ${groupId}`);
+          return;
+        }
+        
         const notificationService = new NotificationService(pool);
-        await Promise.allSettled(studentsRes.rows.map(async (student) => {
-          await notificationService.sendPushNotification(student.id, {
-            title: `Score Published: ${activityName}`,
-            body: `Hi ${student.name || ''}, your score for "${activityName}" in "${courseName}" has been published. Check your mail for more details!`,
-            data: { courseActivityId, runId }
-          });
-          await notificationService.sendEmailNotification(
-            student.id,
-            `Score Published: ${activityName}`,
-            `Hi ${student.name || ''},<br>Your score for <b>${activityName}</b> in <b>${courseName}</b> has been published.<br><br>
-            <b>Steps to check your score:</b><br>
-            1. Go to the home page.<br>
-            2. Select the "Grades" option on the sidebar.<br>
-            3. Select the "<b>${courseName}</b>".<br>
-            4. View the list of all activities and locate the <b>${activityName}</b> to see your score.
-            `
-          );
+        
+        const results = await Promise.allSettled(studentsRes.rows.map(async (student) => {
+          try {
+            const template = emailTemplates.scorePublished(activityName, runName);
+            
+            try {
+              await notificationService.sendPushNotification(student.id, {
+                title: `Score Published: ${activityName}`,
+                body: `Hi ${student.name || ''}, your score for "${activityName}" in "${runName}" has been published. Check your mail for more details!`,
+                data: { courseActivityId, runId }
+              });
+            } catch (pushError) {
+              console.error(`Failed to send push notification to student: ${student.id}`, pushError);
+            }
+            
+            await notificationService.sendEmailNotification(
+              student.id,
+              template.subject,
+              template.heading,
+              template.subheading,
+              template.body
+            );
+          } catch (error) {
+            console.error(` Failed to notify student: ${student.id}`, error);
+            throw error;
+          }
         }));
+        
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+        
+        if (failed > 0) {
+          const errors = results
+            .filter(r => r.status === 'rejected')
+            .map((r: any) => r.reason);
+          console.error('Failed score notifications:', errors);
+        }
     },
 })
 
 
 export const notifyActivityPosted = task({
   id: 'notify-activity-posted',
-  run: async (payload: { courseActivityId: number; runId: string }, params) => { 
+  run: async (payload: { courseActivityId: number; runId: number }, params) => { 
     const { courseActivityId, runId } = payload;
     const res = await pool.query(
-      `SELECT a.type, a.payload, ca.id as course_activity_id, c.name as course_name, cr.name as run_name, g.name as group_name, cr.group_id
+      `SELECT a.id as activity_id, a.type, a.payload, 
+              ca.id as course_activity_id, 
+              c.id as course_id, c.name as course_name, 
+              cr.name as run_name, cr.group_id,
+              g.name as group_name
        FROM activities a
        JOIN "course-activities" ca ON ca.activity_id = a.id
        JOIN courses c ON ca.course_id = c.id
@@ -186,16 +361,33 @@ export const notifyActivityPosted = task({
        WHERE ca.id = $1`, [courseActivityId, runId]
     );
     const row = res.rows[0];
-    let activityName = row?.type || 'Activity';
+    
+    if (!row) {
+      throw new Error(`Activity data not found for courseActivityId: ${courseActivityId}, runId: ${runId}`);
+    }
+    
+    let parsed;
     try {
-      const parsed = JSON.parse(row?.payload || '{}');
-      if (parsed.name) activityName = parsed.name;
-    } catch {}
-    const courseName = row?.course_name ;
-    const runName = row?.run_name ;
-    const groupName = row?.group_name ;
-    const groupId = row?.group_id;
-    if (!groupId) return;
+      parsed = JSON.parse(row.payload || '{}');
+    } catch (error) {
+      throw new Error(`Failed to parse activity payload for courseActivityId ${courseActivityId}: ${error}`);
+    }
+    
+    const activityName = parsed.title;
+    if (!activityName) {
+      throw new Error(`Activity title not found in payload for courseActivityId: ${courseActivityId}`);
+    }
+    
+    const runName = row.run_name;
+    const groupId = row.group_id;
+    
+    if (!runName) {
+      throw new Error(`Run name not found for runId: ${runId}`);
+    }
+    if (!groupId) {
+      throw new Error(`Group not found for runId: ${runId}`);
+    }
+    
     const notificationService = new NotificationService(pool);
     const studentsRes = await pool.query(
       `SELECT u.id, u.name FROM "group-members" gm
@@ -203,14 +395,18 @@ export const notifyActivityPosted = task({
        WHERE gm.group_id = $1 AND gm.role = 'student'`, [groupId]
     );
     await Promise.allSettled(studentsRes.rows.map(async (student) => {
+      const template = emailTemplates.activityPosted(activityName, runName);
       await notificationService.sendPushNotification(student.id, {
         title: `New Activity: ${activityName}`,
-        body: `Hi ${student.name || ''}, a new activity "${activityName}" has been added to "${courseName}". Check it out!`,
+        body: `Hi ${student.name || ''}, a new activity "${activityName}" has been added to "${runName}". Check it out!`,
         data: { courseActivityId, runId }
       });
-      await notificationService.sendEmailNotification(student.id,
-        `New Activity: ${activityName}`,
-        `Hi ${student.name || ''},<br>A new activity <b>${activityName}</b> has been added to <b>${courseName}</b>. Check it out!`
+      await notificationService.sendEmailNotification(
+        student.id,
+        template.subject,
+        template.heading,
+        template.subheading,
+        template.body
       );
     }));
   }
@@ -218,9 +414,9 @@ export const notifyActivityPosted = task({
 
 export const notifyRedoEnabled = task({
   id: 'notify-redo-enabled',
-  run: async (payload: { userId: string; activityId: number; newDeadline: string }) => {
+  run: async (payload: { userId: string; activityId: number; newDeadline: string; runId: number }) => {
     const courseActivitiesRes = await pool.query(
-      `SELECT ca.id as course_activity_id, c.name as course_name
+      `SELECT ca.id as course_activity_id, c.id as course_id, c.name as course_name
        FROM "course-activities" ca
        JOIN courses c ON ca.course_id = c.id
        WHERE ca.activity_id = $1`, 
@@ -234,7 +430,7 @@ export const notifyRedoEnabled = task({
 
     const courseActivityId = courseActivitiesRes.rows[0].course_activity_id;
     const result = await pool.query(
-      `SELECT a.type, a.payload, ca.order, c.name as course_name, c.id as course_id
+      `SELECT a.id as activity_id, a.type, a.payload, ca.order, c.id as course_id, c.name as course_name
        FROM activities a
        JOIN "course-activities" ca ON ca.activity_id = a.id
        JOIN courses c ON ca.course_id = c.id
@@ -243,35 +439,58 @@ export const notifyRedoEnabled = task({
     );
     const activity = result.rows[0];
     if (!activity) {
-      console.error(`No activity found for activity ID: ${payload.activityId}`);
-      return;
+      throw new Error(`Activity not found for activityId: ${payload.activityId}`);
     }
 
-    let activityName = activity?.type;
+    let parsed;
     try {
-      const parsed = JSON.parse(activity?.payload || '{}');
-      if (parsed.name) activityName = parsed.name;
-    } catch {}
-    const courseName = activity.course_name || 'your course';
+      parsed = JSON.parse(activity.payload || '{}');
+    } catch (error) {
+      throw new Error(`Failed to parse activity payload for activityId ${payload.activityId}: ${error}`);
+    }
+    
+    const activityName = parsed.title;
+    if (!activityName) {
+      throw new Error(`Activity title not found in payload for activityId: ${payload.activityId}`);
+    }
+    
+    const courseName = activity.course_name;
+    if (!courseName) {
+      throw new Error(`Course name not found for activityId: ${payload.activityId}`);
+    }
+
+    const runRes = await pool.query(
+      `SELECT name FROM "course-runs" WHERE id = $1`, 
+      [payload.runId]
+    );
+    const runName = runRes.rows[0]?.name;
 
     const userRes = await pool.query(
       `SELECT name FROM users WHERE id = $1`, 
       [payload.userId]
     );
-    const userName = userRes.rows[0]?.name || '';
+    const userName = userRes.rows[0]?.name;
+    if (!userName) {
+      throw new Error(`User not found for userId: ${payload.userId}`);
+    }
 
     const notificationService = new NotificationService(pool);
+
+    const courseInfo = runName ? runName : courseName;
+    const template = emailTemplates.redoEnabled(activityName, payload.newDeadline, courseInfo);
     
     await notificationService.sendPushNotification(payload.userId, {
-      title: `Redo enabled for "${activityName}" in "${courseName}"`,
+      title: `Redo enabled for "${activityName}" in "${courseInfo}"`,
       body: `Hi ${userName}, redo for activity "${activityName}" is enabled. New deadline: ${payload.newDeadline}.`,
       data: { activityId: payload.activityId.toString(), newDeadline: payload.newDeadline }
     });
     
     await notificationService.sendEmailNotification(
-      payload.userId, 
-      `Redo enabled for "${activityName}" in "${courseName}"`, 
-      `Hi ${userName}, redo for activity "${activityName}" is enabled. New deadline: ${payload.newDeadline}. Please go through the ${courseName} and submit your response.`
+      payload.userId,
+      template.subject,
+      template.heading,
+      template.subheading,
+      template.body
     );
   }
 });
@@ -279,33 +498,47 @@ export const notifyRedoEnabled = task({
 
 export const notifyStudentOnAddedToGroup = task({
   id: 'notify-student-added-to-group',
-  run: async (payload: { userId: string; groupId: string }) =>  {
+  run: async (payload: { userId: string; groupId: number }) =>  {
     const { userId, groupId } = payload;
     const userRes = await pool.query(
       `SELECT id, name FROM users WHERE id = $1`, [userId]
     );
     const student = userRes.rows[0];
-    if (!student) return;
+    if (!student) {
+      throw new Error(`Student not found for userId: ${userId}`);
+    }
 
     const groupRes = await pool.query(
-      `SELECT g.name as group_name, cr.name as run_name, c.name as course_name
+      `SELECT g.id as group_id, g.name as group_name, cr.name as run_name, c.name as course_name
        FROM groups g
        LEFT JOIN "course-runs" cr ON cr.group_id = g.id
        LEFT JOIN courses c ON cr.course_id = c.id
        WHERE g.id = $1`, [groupId]
     );
+    
+    if (!groupRes.rows.length) {
+      throw new Error(`Group not found for groupId: ${groupId}`);
+    }
+    
     const groupName = groupRes.rows[0]?.group_name;
-    const runName = groupRes.rows[0]?.run_name;
-    const courseName = groupRes.rows[0]?.course_name;
+    
+    if (!groupName) {
+      throw new Error(`Group name not found for groupId: ${groupId}`);
+    }
     const notificationService = new NotificationService(pool);
+    const template = emailTemplates.addedToGroup(groupName);
+    
     await notificationService.sendPushNotification(student.id, {
       title: `You've been added to group: ${groupName}`,
-      body: `Hi ${student.name || ''}, you have been added to group "${groupName}" for course "${courseName}". Check your dashboard for details!`,
+      body: `Hi ${student.name || ''}, you have been added to group "${groupName}". Check your dashboard for details!`,
       data: { groupId }
     });
-    await notificationService.sendEmailNotification(student.id,
-      `You've been added to group: ${groupName}`,
-      `Hi ${student.name || ''},<br>You have been added to group <b>${groupName}</b> for course <b>${courseName}</b>. Check your dashboard for details!`
+    await notificationService.sendEmailNotification(
+      student.id,
+      template.subject,
+      template.heading,
+      template.subheading,
+      template.body
     );
   }
 });
@@ -313,14 +546,29 @@ export const notifyStudentOnAddedToGroup = task({
 
 export const notifyNewDocumentAdded = task({
   id: 'notify-new-document-added',
-  run: async (payload: { runId: string; documentName: string }) => {
+  run: async (payload: { runId: number; documentName: string }) => {
     const { runId, documentName } = payload;
     const runRes = await pool.query(
-      `SELECT group_id, course_id FROM "course-runs" WHERE id = $1`, [runId]
+      `SELECT group_id, course_id, c.name as course_name 
+       FROM "course-runs" cr
+       JOIN courses c ON cr.course_id = c.id
+       WHERE cr.id = $1`, [runId]
     );
+    
+    if (!runRes.rows.length) {
+      throw new Error(`Course run not found for runId: ${runId}`);
+    }
+    
     const groupId = runRes.rows[0]?.group_id;
     const courseId = runRes.rows[0]?.course_id;
-    if (!groupId || !courseId) return;
+    const courseName = runRes.rows[0]?.course_name;
+    
+    if (!groupId || !courseId) {
+      throw new Error(`Group or Course not found for runId: ${runId}`);
+    }
+    if (!courseName) {
+      throw new Error(`Course name not found for runId: ${runId}`);
+    }
 
     const studentsRes = await pool.query(
       `SELECT u.id, u.name FROM "group-members" gm
@@ -335,6 +583,7 @@ export const notifyNewDocumentAdded = task({
     if (!studentsRes.rows.length && !managersRes.rows.length) return;
 
     const notificationService = new NotificationService(pool);
+    const template = emailTemplates.newDocument(documentName, courseName);
 
     await Promise.allSettled(studentsRes.rows.map(async (student) => {
       await notificationService.sendPushNotification(student.id, {
@@ -342,9 +591,12 @@ export const notifyNewDocumentAdded = task({
         body: `Hi ${student.name || ''}, a new document "${documentName}" has been added to your course. Check it out!`,
         data: { documentName, runId }
       });
-      await notificationService.sendEmailNotification(student.id,
-        `New Document Added: ${documentName}`,
-        `Hi ${student.name || ''},<br>A new document <b>${documentName}</b> has been added to your course. Check it out!`
+      await notificationService.sendEmailNotification(
+        student.id,
+        template.subject,
+        template.heading,
+        template.subheading,
+        template.body
       );
     }));
     await Promise.allSettled(managersRes.rows.map(async (manager) => {
@@ -353,9 +605,12 @@ export const notifyNewDocumentAdded = task({
         body: `Hi ${manager.name || ''}, a new document "${documentName}" has been added to your course.`,
         data: { documentName, runId }
       });
-      await notificationService.sendEmailNotification(manager.id,
-        `New Document Added: ${documentName}`,
-        `Hi ${manager.name || ''},<br>A new document <b>${documentName}</b> has been added to your course.`
+      await notificationService.sendEmailNotification(
+        manager.id,
+        template.subject,
+        template.heading,
+        template.subheading,
+        template.body
       );
     }));
   }
@@ -363,7 +618,7 @@ export const notifyNewDocumentAdded = task({
 
 export const scheduleNotifyMissedDeadline = task({
   id: 'schedule-notify-missed-deadline',
-  run: async (payload: { courseActivityId: string; runId: string; deadline: string }) => {
+  run: async (payload: { courseActivityId: number; runId: number; deadline: string }) => {
     const { courseActivityId, runId, deadline } = payload;
     
     const activityRes = await pool.query(
@@ -371,9 +626,16 @@ export const scheduleNotifyMissedDeadline = task({
        JOIN "course-activities" ca ON ca.activity_id = a.id
        WHERE ca.id = $1`, [courseActivityId]
     );
-    const activityType = activityRes.rows[0]?.type;
     
-    if (activityType !== 'quiz' && activityType !== 'assignment') return;
+    if (!activityRes.rows.length) {
+      throw new Error(`Activity not found for courseActivityId: ${courseActivityId}`);
+    }
+    
+    const activityType = activityRes.rows[0].type;
+    if (activityType !== 'quiz' && activityType !== 'assignment' && activityType !== 'exam') {
+      console.log(`Skipping missed deadline scheduling for activity type: ${activityType}, courseActivityId: ${courseActivityId}`);
+      return;
+    }
     
     await notifyMissedDeadline.trigger(
       { courseActivityId, runId, deadline },
@@ -389,10 +651,14 @@ export const scheduleNotifyMissedDeadline = task({
 
 export const notifyMissedDeadline = task({
   id: 'notify-missed-deadline',
-  run: async (payload: { courseActivityId: string; runId: string; deadline: string }) => {
+  run: async (payload: { courseActivityId: number; runId: number; deadline: string }) => {
     const { courseActivityId, runId, deadline } = payload;
     const res = await pool.query(
-      `SELECT a.type, a.payload, ca.id as course_activity_id, c.name as course_name, cr.name as run_name, g.name as group_name, cr.group_id
+      `SELECT a.id as activity_id, a.type, a.payload, 
+              ca.id as course_activity_id, 
+              c.id as course_id, c.name as course_name, 
+              cr.name as run_name, cr.group_id,
+              g.name as group_name
        FROM activities a
        JOIN "course-activities" ca ON ca.activity_id = a.id
        JOIN courses c ON ca.course_id = c.id
@@ -401,74 +667,125 @@ export const notifyMissedDeadline = task({
        WHERE ca.id = $1`, [courseActivityId, runId]
     );
     const row = res.rows[0];
-    let activityName = row?.type || 'Activity';
+    if (!row) {
+      throw new Error(`Activity data not found for courseActivityId: ${courseActivityId}, runId: ${runId}`);
+    }
+    
+    let parsed;
     try {
-      const parsed = JSON.parse(row?.payload || '{}');
-      if (parsed.name) activityName = parsed.name;
-    } catch {}
-    const courseName = row?.course_name;
-    const runName = row?.run_name;
-    const groupName = row?.group_name;
-    const groupId = row?.group_id;
-    if (!groupId) return;
+      parsed = JSON.parse(row.payload || '{}');
+    } catch (error) {
+      throw new Error(`Failed to parse activity payload for courseActivityId ${courseActivityId}: ${error}`);
+    }
+    
+    const activityName = parsed.title;
+    if (!activityName) {
+      throw new Error(`Activity title not found in payload for courseActivityId: ${courseActivityId}`);
+    }
+    
+    const runName = row.run_name;
+    const groupId = row.group_id;
+    const activityId = row.activity_id;
+    
+    if (!runName) {
+      throw new Error(`Run name not found for runId: ${runId}`);
+    }
+    if (!groupId) {
+      throw new Error(`Group not found for runId: ${runId}`);
+    }
+    
     const studentsRes = await pool.query(
       `SELECT u.id, u.name FROM "group-members" gm
        JOIN users u ON gm.user_id = u.id
        WHERE gm.group_id = $1 AND gm.role = 'student'`, [groupId]
     );
     if (!studentsRes.rows.length) return;
+    
     const activityType = row?.type;
     let submittedIds: string[] = [];
+    
     if (activityType === 'assignment') {
       const submissions = await pool.query(
-        `SELECT DISTINCT user_id FROM assignment_submissions WHERE activity_id = (SELECT activity_id FROM "course-activities" WHERE id = $1) AND course_run_id = $2`,
-        [courseActivityId, runId]
+        `SELECT DISTINCT user_id FROM assignment_submissions 
+         WHERE activity_id = $1 AND course_run_id = $2`,
+        [activityId, runId]
       );
       submittedIds = submissions.rows.map(r => r.user_id);
     } else if (activityType === 'quiz') {
       const attempts = await pool.query(
-        `SELECT DISTINCT user_id FROM "quiz-attempts" WHERE activity_id = (SELECT activity_id FROM "course-activities" WHERE id = $1) AND course_run_id = $2`,
-        [courseActivityId, runId]
+        `SELECT DISTINCT user_id FROM "quiz-attempts" 
+         WHERE activity_id = $1 AND course_run_id = $2`,
+        [activityId, runId]
       );
       submittedIds = attempts.rows.map(r => r.user_id);
-    }
-    const studentsToNotify = studentsRes.rows.filter(s => !submittedIds.includes(s.id));
-    if (!studentsToNotify.length) return;
-    const notificationService = new NotificationService(pool);
-    await Promise.allSettled(studentsToNotify.map(async (student) => {
-      await notificationService.sendPushNotification(student.id, {
-        title: `Missed Deadline: ${activityName})`,
-        body: `Hi ${student.name || ''}, you missed the deadline for "${activityName}" in "${courseName}". Please check with your facilitator for next steps.`,
-        data: { courseActivityId, runId, deadline }
-      });
-      await notificationService.sendEmailNotification(student.id,
-        `Missed Deadline: ${activityName})`,
-        `Hi ${student.name || ''},<br>You missed the deadline for <b>${activityName}</b> in <b>${courseName}</b>. Please check with your facilitator for next steps.`
+    } else if (activityType === 'exam') {
+      const examSubmissions = await pool.query(
+        `SELECT DISTINCT user_id FROM exam_submissions 
+         WHERE activity_id = $1 AND course_run_id = $2 AND submitted_at IS NOT NULL`,
+        [activityId, runId]
       );
+      submittedIds = examSubmissions.rows.map(r => r.user_id);
+    }
+    
+    const studentsToNotify = studentsRes.rows.filter(s => !submittedIds.includes(s.id));
+    if (!studentsToNotify.length) {
+      console.log('No students to notify - all have submitted');
+      return;
+    }
+    
+    const notificationService = new NotificationService(pool);
+    const template = emailTemplates.missedDeadline(activityName, runName);
+    
+    
+    const results = await Promise.allSettled(studentsToNotify.map(async (student) => {
+      try {
+        
+        try {
+          await notificationService.sendPushNotification(student.id, {
+            title: `Missed Deadline: ${activityName}`,
+            body: `Hi ${student.name || ''}, you missed the deadline for "${activityName}" in "${runName}". Please check with your facilitator for next steps.`,
+            data: { courseActivityId, runId, deadline }
+          });
+        } catch (pushError) {
+          console.error(` Failed to send push notification to studentId: ${student.id}`, pushError);
+        }
+        
+        await notificationService.sendEmailNotification(
+          student.id,
+          template.subject,
+          template.heading,
+          template.subheading,
+          template.body
+        );
+      } catch (error) {
+        console.error(` Failed to notify studentId: ${student.id}`, error);
+        throw error;
+      }
     }));
+    
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    
+    if (failed > 0) {
+      const errors = results
+        .filter(r => r.status === 'rejected')
+        .map((r: any) => r.reason);
+      console.error('Failed notifications:', errors);
+    }
   }
 });
 
 export const notifyFacilitatorPostDeadlineSummary = task({
   id: 'notify-facilitator-post-deadline-summary',
-  run: async (payload: { courseActivityId: string; runId: string; deadline: string }) => {
+  run: async (payload: { courseActivityId: number; runId: number; deadline: string }) => {
     const { courseActivityId, runId, deadline } = payload;
-    const runRes = await pool.query(
-      `SELECT group_id FROM "course-runs" WHERE id = $1`, [runId]
-    );
-    const groupId = runRes.rows[0]?.group_id;
-    if (!groupId) return;
-
-    const studentsRes = await pool.query(
-      `SELECT u.id FROM "group-members" gm
-       JOIN users u ON gm.user_id = u.id
-       WHERE gm.group_id = $1 AND gm.role = 'student'`, [groupId]
-    );
-    if (!studentsRes.rows.length) return;
-    const studentIds = studentsRes.rows.map(s => s.id);
-
+    
     const res = await pool.query(
-      `SELECT a.type, a.payload, ca.id as course_activity_id, c.name as course_name, cr.name as run_name, g.name as group_name, cr.group_id as group_id_ctx
+      `SELECT a.id as activity_id, a.type, a.payload, 
+              ca.id as course_activity_id, 
+              c.id as course_id, c.name as course_name, 
+              cr.name as run_name, cr.group_id,
+              g.name as group_name
        FROM activities a
        JOIN "course-activities" ca ON ca.activity_id = a.id
        JOIN courses c ON ca.course_id = c.id
@@ -477,69 +794,93 @@ export const notifyFacilitatorPostDeadlineSummary = task({
        WHERE ca.id = $1`, [courseActivityId, runId]
     );
     const row = res.rows[0];
-    let activityName = row?.type || 'Activity';
+    if (!row) {
+      throw new Error(`Activity data not found for courseActivityId: ${courseActivityId}, runId: ${runId}`);
+    }
+    
+    let parsed;
     try {
-      const parsed = JSON.parse(row?.payload || '{}');
-      if (parsed.name) activityName = parsed.name;
-    } catch {}
-    const courseName = row?.course_name;
-    const runName = row?.run_name;
-    const groupName = row?.group_name;
-    const groupId_ctx = row?.group_id_ctx;
-    if (!groupId_ctx) return;
-    const studentsRes_ctx = await pool.query(
+      parsed = JSON.parse(row.payload || '{}');
+    } catch (error) {
+      throw new Error(`Failed to parse activity payload for courseActivityId ${courseActivityId}: ${error}`);
+    }
+    
+    const activityName = parsed.title;
+    if (!activityName) {
+      throw new Error(`Activity title not found in payload for courseActivityId: ${courseActivityId}`);
+    }
+    
+    const runName = row.run_name;
+    const groupId = row.group_id;
+    const activityId = row.activity_id;
+    const courseId = row.course_id;
+    
+    if (!runName) {
+      throw new Error(`Run name not found for runId: ${runId}`);
+    }
+    if (!groupId || !courseId) {
+      throw new Error(`Group or Course not found for courseActivityId: ${courseActivityId}, runId: ${runId}`);
+    }
+    
+    const studentsRes = await pool.query(
       `SELECT u.id FROM "group-members" gm
        JOIN users u ON gm.user_id = u.id
-       WHERE gm.group_id = $1 AND gm.role = 'student'`, [groupId_ctx]
+       WHERE gm.group_id = $1 AND gm.role = 'student'`, [groupId]
     );
-    if (!studentsRes_ctx.rows.length) return;
-    const studentIds_ctx = studentsRes_ctx.rows.map(s => s.id);
+    if (!studentsRes.rows.length) return;
+    
+    const studentIds = studentsRes.rows.map(s => s.id);
     const activityType = row?.type;
     let submittedIds: string[] = [];
+    
     if (activityType === 'assignment') {
       const submissions = await pool.query(
-        `SELECT DISTINCT user_id FROM assignment_submissions WHERE activity_id = (SELECT activity_id FROM "course-activities" WHERE id = $1) AND course_run_id = $2`,
-        [courseActivityId, runId]
+        `SELECT DISTINCT user_id FROM assignment_submissions 
+         WHERE activity_id = $1 AND course_run_id = $2`,
+        [activityId, runId]
       );
       submittedIds = submissions.rows.map(r => r.user_id);
     } else if (activityType === 'quiz') {
       const attempts = await pool.query(
-        `SELECT DISTINCT user_id FROM "quiz-attempts" WHERE activity_id = (SELECT activity_id FROM "course-activities" WHERE id = $1) AND course_run_id = $2`,
-        [courseActivityId, runId]
+        `SELECT DISTINCT user_id FROM "quiz-attempts" 
+         WHERE activity_id = $1 AND course_run_id = $2`,
+        [activityId, runId]
       );
       submittedIds = attempts.rows.map(r => r.user_id);
-    }
-    const submitted = studentIds_ctx.filter(id => submittedIds.includes(id)).length;
-    const notSubmitted = studentIds_ctx.length - submitted;
-    const courseId = await (async () => {
-      const courseRes = await pool.query(
-        `SELECT course_id FROM "course-activities" WHERE id = $1`, [courseActivityId]
+    } else if (activityType === 'exam') {
+      const examSubmissions = await pool.query(
+        `SELECT DISTINCT user_id FROM exam_submissions 
+         WHERE activity_id = $1 AND course_run_id = $2 AND submitted_at IS NOT NULL`,
+        [activityId, runId]
       );
-      return courseRes.rows[0]?.course_id;
-    })();
-    if (!courseId) return;
+      submittedIds = examSubmissions.rows.map(r => r.user_id);
+    }
+    
+    const submitted = studentIds.filter(id => submittedIds.includes(id)).length;
+    const notSubmitted = studentIds.length - submitted;
+    
     const facilitatorsRes = await pool.query(
       `SELECT u.id, u.name FROM course_managers cm
        JOIN users u ON cm.user_id = u.id
        WHERE cm.course_id = $1`, [courseId]
     );
     if (!facilitatorsRes.rows.length) return;
+    
     const notificationService = new NotificationService(pool);
+    const template = emailTemplates.facilitatorSummary(activityName, runName, submitted, notSubmitted);
+    
     await Promise.allSettled(facilitatorsRes.rows.map(async (facilitator) => {
       await notificationService.sendPushNotification(facilitator.id, {
-        title: `Graded activity deadline passed: ${activityName})`,
-        body: `Activity "${activityName}" in "${courseName}" deadline passed. Submitted: ${submitted}, Not submitted: ${notSubmitted}`,
+        title: `Graded activity deadline passed: ${activityName}`,
+        body: `Activity "${activityName}" in "${runName}" deadline passed. Submitted: ${submitted}, Not submitted: ${notSubmitted}`,
         data: { courseActivityId, submitted, notSubmitted }
       });
       await notificationService.sendEmailNotification(
         facilitator.id,
-        `Graded Activity Deadline Passed: ${activityName})`,
-        `Dear ${facilitator.name},<br><br>
-        The deadline for the graded activity <b>${activityName}</b> in the course <b>${courseName}</b> has passed.<br>
-        <b>Number of students who submitted:</b> ${submitted}<br>
-        <b>Number of students who did not submit:</b> ${notSubmitted}<br><br>
-        Please review the submissions and follow up with students as needed.<br><br>
-        `
+        template.subject,
+        template.heading,
+        template.subheading,
+        template.body
       );
     }));
   }
@@ -547,7 +888,7 @@ export const notifyFacilitatorPostDeadlineSummary = task({
 
 export const scheduleNotifyFacilitatorPostDeadlineSummary = task({
   id: 'schedule-notify-facilitator-post-deadline-summary',
-  run: async (payload: { courseActivityId: string; runId: string; deadline: string }) => {
+  run: async (payload: { courseActivityId: number; runId: number; deadline: string }) => {
     const { courseActivityId, runId, deadline } = payload;
     
     const activityRes = await pool.query(
@@ -555,9 +896,16 @@ export const scheduleNotifyFacilitatorPostDeadlineSummary = task({
        JOIN "course-activities" ca ON ca.activity_id = a.id
        WHERE ca.id = $1`, [courseActivityId]
     );
-    const activityType = activityRes.rows[0]?.type;
     
-    if (activityType !== 'quiz' && activityType !== 'assignment') return;
+    if (!activityRes.rows.length) {
+      throw new Error(`Activity not found for courseActivityId: ${courseActivityId}`);
+    }
+    
+    const activityType = activityRes.rows[0].type;
+    if (activityType !== 'quiz' && activityType !== 'assignment' && activityType !== 'exam') {
+      console.log(`Skipping facilitator summary scheduling for activity type: ${activityType}, courseActivityId: ${courseActivityId}`);
+      return;
+    }
     
     await notifyFacilitatorPostDeadlineSummary.trigger(
       { courseActivityId, runId, deadline },
@@ -573,35 +921,59 @@ export const scheduleNotifyFacilitatorPostDeadlineSummary = task({
 
 export const notifyFacilitatorEndOfCourseRunFinalize = task({
   id: 'notify-facilitator-end-of-course-run-finalize',
-  run: async (payload: { courseRunId: string }) => {
+  run: async (payload: { courseRunId: number }) => {
     const { courseRunId } = payload;
     const res = await pool.query(
-      `SELECT cr.name as run_name, c.name as course_name, g.name as group_name
+      `SELECT cr.name as run_name, cr.end_date, c.id as course_id, c.name as course_name, g.name as group_name
        FROM "course-runs" cr
        JOIN courses c ON cr.course_id = c.id
        JOIN groups g ON cr.group_id = g.id
        WHERE cr.id = $1`, [courseRunId]
     );
     const row = res.rows[0];
-    const runName = row?.run_name;
-    const courseName = row?.course_name;
-    const groupName = row?.group_name;
+    if (!row) {
+      throw new Error(`Course run not found for courseRunId: ${courseRunId}`);
+    }
+    
+    const runName = row.run_name;
+    const courseName = row.course_name;
+    const groupName = row.group_name;
+    const courseId = row.course_id;
+    
+    if (!runName || !courseName) {
+      throw new Error(`Course run or course name not found for courseRunId: ${courseRunId}`);
+    }
+    if (!courseId) {
+      throw new Error(`Course ID not found for courseRunId: ${courseRunId}`);
+    }
+    
+    const endDate = row.end_date ? new Date(row.end_date).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    }) : '';
+    
     const facilitatorsRes = await pool.query(
       `SELECT u.id, u.name FROM course_managers cm
        JOIN users u ON cm.user_id = u.id
-       WHERE cm.course_id = (SELECT course_id FROM "course-runs" WHERE id = $1)`, [courseRunId]
+       WHERE cm.course_id = $1`, [courseId]
     );
     if (!facilitatorsRes.rows.length) return;
     const notificationService = new NotificationService(pool);
+    const template = emailTemplates.courseRunFinalize(courseName, runName, endDate);
+    
     await Promise.allSettled(facilitatorsRes.rows.map(async (facilitator) => {
       await notificationService.sendPushNotification(facilitator.id, {
-        title: `Course run finalized: ${runName})`,
+        title: `Course run finalized: ${runName}`,
         body: `The course run "${runName}" for course "${courseName}" has been finalized. Please check the dashboard for details.`,
         data: { courseRunId }
       });
-      await notificationService.sendEmailNotification(facilitator.id,
-        `Course run finalized: ${runName})`,
-        `The course run <b>${runName}</b> for course <b>${courseName}</b> has been finalized. Please check the dashboard for details.`
+      await notificationService.sendEmailNotification(
+        facilitator.id,
+        template.subject,
+        template.heading,
+        template.subheading,
+        template.body
       );
     }));
   }
@@ -609,18 +981,28 @@ export const notifyFacilitatorEndOfCourseRunFinalize = task({
 
 export const scheduleNotifyFacilitatorEndOfCourseRunFinalize = task({
   id: 'schedule-notify-facilitator-end-of-course-run-finalize',
-  run: async (payload: { courseRunId: string }) => {
+  run: async (payload: { courseRunId: number }) => {
     const { courseRunId } = payload;
     const runRes = await pool.query(
       `SELECT end_date FROM "course-runs" WHERE id = $1`, [courseRunId]
     );
+    
+    if (!runRes.rows.length) {
+      throw new Error(`Course run not found for courseRunId: ${courseRunId}`);
+    }
+    
     const endDate = runRes.rows[0]?.end_date;
+    if (!endDate) {
+      throw new Error(`End date not found for courseRunId: ${courseRunId}`);
+    }
+    
     await notifyFacilitatorEndOfCourseRunFinalize.trigger(
       { courseRunId },
-      { delay: new Date(endDate).toISOString(),
+      { 
+        delay: new Date(endDate).toISOString(),
         tags: [`run_${courseRunId}`],
         metadata: { courseRunId, endDate }
-       }
+      }
     );
   }
 });
