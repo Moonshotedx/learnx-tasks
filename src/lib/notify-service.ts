@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import { Pool } from 'pg';
 import { SendMailClient } from 'zeptomail';
+import { generateEmailTemplate } from './email-template';
 
 let webpushInitialized = false;
 let zeptoClient: SendMailClient | null = null;
@@ -26,6 +27,7 @@ function getZeptoClient() {
     const ZEPTO_TOKEN = process.env.ZEPTO_TOKEN;
     
     if (!ZEPTO_TOKEN) {
+      console.error('❌ ZEPTO_TOKEN environment variable is not set!');
       throw new Error('ZEPTO_TOKEN is required for email notifications');
     }
     
@@ -34,75 +36,55 @@ function getZeptoClient() {
   return zeptoClient;
 }
 
-async function sendZeptoMail(to: string, subject: string, body: string) {
-  const client = getZeptoClient();
-  const ZEPTO_FROM_ADDRESS = process.env.ZEPTO_FROM_ADDRESS || 'tech@xcelerator.co.in';
-  const ZEPTO_FROM_NAME = process.env.ZEPTO_FROM_NAME || 'LearnX';
-  
-  const htmlTemplate = `
-  <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: rgba(248, 250, 252, 0.6); padding: 24px; margin: 0;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 700px; margin: 0 auto;">
-      <tr>
-        <td>
-          <div style="background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); border-left: 4px solid #3b82f6; overflow: hidden;">
-            
-            <div style="padding: 28px 40px 24px 40px;">
-              <div style="display: flex; align-items: center; margin-bottom: 20px;">
-                <img src="https://bucket.xcelerator.co.in/diamond-192.png" alt="LearnX" style="width: 28px; height: 28px; margin-right: 10px;" />
-                <span style="font-size: 18px; font-weight: 600; color: #1e293b;">LearnX</span>
-                <img src="https://assets.xcelerator.co.in/AUFull.png" alt="Atria University" style="height: 28px; margin-left: 16px;" />
-              </div>
-              
-              <h1 style="margin: 0 0 16px 0; font-size: 22px; font-weight: 600; color: #1e293b; line-height: 1.4;">
-                ${subject}
-              </h1>
-              
-              <div style="font-size: 16px; color: #475569; line-height: 1.6; margin-bottom: 20px;">
-                ${body}
-              </div>
+interface EmailParams {
+  to: string;
+  subject: string;
+  heading: string;
+  subheading: string;
+  body: string;
+  ctaText?: string;
+  ctaUrl?: string;
+}
 
-              <div style="margin: 24px 0;">
-                <a href="https://learnx.atriauniversity.in" target="_blank" style="display: inline-block; padding: 10px 20px; background: #3b82f6; color: #ffffff; border-radius: 6px; font-size: 14px; font-weight: 500; text-decoration: none; transition: background-color 0.2s;">
-                  Go to LearnX
-                </a>
-              </div>
-            </div>
-            
-            <div style="padding: 20px 40px 28px 40px; border-top: 1px solid #e2e8f0;">
-              <div style="font-size: 14px; color: #64748b; margin-bottom: 16px;">
-                Having trouble? <a href="mailto:contact@xcelerator.co.in" style="color: #3b82f6; text-decoration: none;">Contact us</a>
-              </div>
-              
-              <div style="font-size: 14px; color: #64748b;">
-                Best regards,<br>
-                Xcelerator Team
-              </div>
-            </div>
-            
-          </div>
-        </td>
-      </tr>
-    </table>
-  </div>
-  `;
+async function sendZeptoMail(params: EmailParams) {
+  try {
+    const client = getZeptoClient();
+    const ZEPTO_FROM_ADDRESS = process.env.ZEPTO_FROM_ADDRESS || 'tech@xcelerator.co.in';
+    const ZEPTO_FROM_NAME = process.env.ZEPTO_FROM_NAME || 'LearnX';
+    
+    const htmlTemplate = generateEmailTemplate({
+      heading: params.heading,
+      subheading: params.subheading,
+      body: params.body,
+      ctaText: params.ctaText,
+      ctaUrl: params.ctaUrl
+    });
 
-  return client.sendMail({
-    from: {
-      address: ZEPTO_FROM_ADDRESS,
-      name: ZEPTO_FROM_NAME
-    },
-    to: [
-      {
-        email_address: {
-          address: to,
-          name: to
+    const plainTextBody = params.body.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+
+    const result = await client.sendMail({
+      from: {
+        address: ZEPTO_FROM_ADDRESS,
+        name: ZEPTO_FROM_NAME
+      },
+      to: [
+        {
+          email_address: {
+            address: params.to,
+            name: params.to
+          }
         }
-      }
-    ],
-    subject,
-    textbody: body,
-    htmlbody: htmlTemplate
-  });
+      ],
+      subject: params.subject,
+      textbody: plainTextBody,
+      htmlbody: htmlTemplate
+    });
+    
+    return result;
+  } catch (error) {
+    console.error(`❌ Zepto mail error for ${params.to}:`, error);
+    throw new Error(`Failed to send email to ${params.to}: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 export class NotificationService {
@@ -144,13 +126,38 @@ export class NotificationService {
     );
   }
 
-  async sendEmailNotification(userId: string, subject: string, body: string) {
-    const userRes = await this.pool.query(
-      `SELECT email FROM users WHERE id = $1`, [userId]
-    );
-    const email = userRes.rows[0]?.email;
-    if (email) {
-      await sendZeptoMail(email, subject, body);
+  async sendEmailNotification(
+    userId: string, 
+    subject: string, 
+    heading: string,
+    subheading: string,
+    body: string,
+    ctaText?: string,
+    ctaUrl?: string
+  ) {
+    try {
+      const userRes = await this.pool.query(
+        `SELECT email FROM users WHERE id = $1`, [userId]
+      );
+      const email = userRes.rows[0]?.email;
+      
+      if (!email) {
+        console.warn(`No email found for userId: ${userId}`);
+        return;
+      }
+      
+      await sendZeptoMail({
+        to: email,
+        subject,
+        heading,
+        subheading,
+        body,
+        ctaText,
+        ctaUrl
+      });
+    } catch (error) {
+      console.error(`Failed to send email notification to userId: ${userId}`, error);
+      throw error;
     }
   }
 }
