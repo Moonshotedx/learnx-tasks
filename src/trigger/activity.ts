@@ -1,5 +1,6 @@
 import { task } from '@trigger.dev/sdk/v3';
 import pool from '../lib/db';
+import { convertUTCToISTString } from '../lib/utils';
 
 export const scheduleAutoSubmitUnsubmittedActivities = task({
     id: 'schedule-auto-submit-unsubmitted-activities',
@@ -10,8 +11,8 @@ export const scheduleAutoSubmitUnsubmittedActivities = task({
     }) => {
         // Get activity type
         const activityRes = await pool.query(
-            `SELECT a.id as activity_id, a.type FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+            `SELECT a.id as activity_id, a.type FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        WHERE ca.id = $1`,
             [payload.courseActivityId],
         );
@@ -32,16 +33,18 @@ export const scheduleAutoSubmitUnsubmittedActivities = task({
             return;
         }
 
+        const formattedDeadlineIST = convertUTCToISTString(new Date(payload.deadline));
+
         // Schedule the auto-submit task to run at the deadline
         await autoSubmitUnsubmittedActivities.trigger(
             {
                 activityId: activityId,
                 activityType: activityType,
                 runId: payload.runId,
-                deadline: payload.deadline,
+                deadline: formattedDeadlineIST,
             },
             {
-                delay: new Date(payload.deadline).toISOString(),
+                delay: payload.deadline,
                 tags: [
                     `run_${payload.runId}`,
                     `activity_${payload.courseActivityId}`,
@@ -52,6 +55,7 @@ export const scheduleAutoSubmitUnsubmittedActivities = task({
                     courseActivityId: payload.courseActivityId,
                     activityType: activityType,
                     deadline: payload.deadline,
+                    formattedDeadlineIST: formattedDeadlineIST,
                     type: 'auto_submit_unsubmitted',
                 },
             },
@@ -128,8 +132,8 @@ export const scheduleAutoSubmitStudentRedo = task({
         deadline: string;
     }) => {
         const activityRes = await pool.query(
-            `SELECT a.id as activity_id, a.type FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+            `SELECT a.id as activity_id, a.type FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        WHERE ca.id = $1`,
             [payload.courseActivityId],
         );
@@ -150,16 +154,18 @@ export const scheduleAutoSubmitStudentRedo = task({
             return;
         }
 
+        const formattedDeadlineIST = convertUTCToISTString(new Date(payload.deadline));
+
         await autoSubmitStudentRedo.trigger(
             {
                 userId: payload.userId,
                 activityId: activityId,
                 activityType: activityType,
                 runId: payload.runId,
-                deadline: payload.deadline,
+                deadline: formattedDeadlineIST,
             },
             {
-                delay: new Date(payload.deadline).toISOString(),
+                delay: payload.deadline,
                 tags: [
                     `run_${payload.runId}`,
                     `activity_${payload.courseActivityId}`,
@@ -172,6 +178,7 @@ export const scheduleAutoSubmitStudentRedo = task({
                     courseActivityId: payload.courseActivityId,
                     activityType: activityType,
                     deadline: payload.deadline,
+                    formattedDeadlineIST: formattedDeadlineIST,
                     type: 'auto_submit_student_redo',
                 },
             },
