@@ -223,7 +223,7 @@ export const scheduleManagerDeadlineWarning = task({
                 deadline: formattedDeadlineIST,
             },
             {
-                delay: payload.deadline,
+                delay: new Date(new Date(payload.deadline).getTime() - 30 * 60 * 1000).toISOString(),
                 tags: [
                     `run_${payload.runId}`,
                     `activity_${payload.courseActivityId}`,
