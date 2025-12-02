@@ -1258,11 +1258,6 @@ export const scheduleNotifyFacilitatorPostDeadlineSummary = task({
         deadline: string;
     }) => {
         const { courseActivityId, runId, deadline } = payload;
-        console.log("payload", {
-            courseActivityId,
-            runId,
-            deadline
-        })
 
         const activityRes = await pool.query(
             `SELECT a.type, ca.activity_id as ca_activity_id 
