@@ -2,6 +2,7 @@ import { task } from '@trigger.dev/sdk/v3';
 import pool from '../lib/db';
 import { emailTemplates } from '../lib/email-template';
 import { NotificationService } from '../lib/notify-service';
+import { convertUTCToISTString } from '../lib/utils';
 
 export const scheduleStudentDeadlineNotification = task({
     id: 'schedule-student-deadline-notification',
@@ -11,13 +12,13 @@ export const scheduleStudentDeadlineNotification = task({
         deadline: string;
     }) => {
         const activityRes = await pool.query(
-            `SELECT a.type FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+            `SELECT a.type FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        WHERE ca.id = $1`,
             [payload.courseActivityId],
         );
 
-        if (!activityRes.rows.length) {
+        if (!activityRes.rowCount || activityRes.rowCount < 1) {
             throw new Error(
                 `Activity not found for courseActivityId: ${payload.courseActivityId}`,
             );
@@ -35,16 +36,16 @@ export const scheduleStudentDeadlineNotification = task({
             return;
         }
 
+        const formattedDeadlineIST = convertUTCToISTString(new Date(payload.deadline));
+
         await sendStudentDeadlineNotification.trigger(
             {
                 courseActivityId: payload.courseActivityId,
                 runId: payload.runId,
-                deadline: payload.deadline,
+                deadline: formattedDeadlineIST,
             },
             {
-                delay: new Date(
-                    new Date(payload.deadline).getTime() - 2 * 60 * 60 * 1000,
-                ).toISOString(),
+                delay: payload.deadline,
                 tags: [
                     `run_${payload.runId}`,
                     `activity_${payload.courseActivityId}`,
@@ -54,6 +55,7 @@ export const scheduleStudentDeadlineNotification = task({
                     runId: payload.runId,
                     courseActivityId: payload.courseActivityId,
                     deadline: payload.deadline,
+                    formattedDeadlineIST: formattedDeadlineIST,
                     type: 'student_deadline_notification',
                 },
             },
@@ -70,15 +72,15 @@ export const sendStudentDeadlineNotification = task({
     }) => {
         const activityRes = await pool.query(
             `SELECT a.id as activity_id, a.type, a.payload, ca.order, c.id as course_id, c.name as course_name
-       FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+       FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        JOIN courses c ON ca.course_id = c.id
        WHERE ca.id = $1`,
             [payload.courseActivityId],
         );
         const activity = activityRes.rows[0];
 
-        if (!activity) {
+        if (!activityRes.rowCount || activityRes.rowCount < 1) {
             throw new Error(
                 `Activity not found for courseActivityId: ${payload.courseActivityId}`,
             );
@@ -124,32 +126,34 @@ export const sendStudentDeadlineNotification = task({
 
         const results = await Promise.allSettled(
             studentsRes.rows.map(async (student) => {
+                const errors: Error[] = [];
+                const template = emailTemplates.deadlineSoon(
+                    activityName,
+                    runName,
+                    payload.deadline,
+                );
+
                 try {
-                    const template = emailTemplates.deadlineSoon(
-                        activityName,
-                        runName,
-                        payload.deadline,
-                    );
-
-                    try {
-                        await notificationService.sendPushNotification(
-                            student.id,
-                            {
-                                title: `Assignment "${activityName}" is due soon in "${runName}"`,
-                                body: `Hi ${student.name || ''}, your assignment "${activityName}" for "${runName}" is due at ${payload.deadline}. Please make sure to submit before the deadline!`,
-                                data: {
-                                    courseActivityId: payload.courseActivityId,
-                                    deadline: payload.deadline,
-                                },
+                    await notificationService.sendPushNotification(
+                        student.id,
+                        {
+                            title: `Assignment "${activityName}" is due soon in "${runName}"`,
+                            body: `Hi ${student.name || ''}, your assignment "${activityName}" for "${runName}" is due at ${payload.deadline}. Please make sure to submit before the deadline!`,
+                            data: {
+                                courseActivityId: payload.courseActivityId,
+                                deadline: payload.deadline,
                             },
-                        );
-                    } catch (pushError) {
-                        console.error(
-                            ` Failed to send push notification to studentId: ${student.id}`,
-                            pushError,
-                        );
-                    }
+                        },
+                    );
+                } catch (pushError) {
+                    console.error(
+                        ` Failed to send push notification to studentId: ${student.id}`,
+                        pushError,
+                    );
+                    errors.push(pushError as Error);
+                }
 
+                try {
                     await notificationService.sendEmailNotification(
                         student.id,
                         template.subject,
@@ -157,12 +161,18 @@ export const sendStudentDeadlineNotification = task({
                         template.subheading,
                         template.body,
                     );
-                } catch (error) {
+                } catch (emailError) {
                     console.error(
-                        ` Failed to notify studentId: ${student.id}`,
-                        error,
+                        ` Failed to send email notification to studentId: ${student.id}`,
+                        emailError,
                     );
-                    throw error;
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
                 }
             }),
         );
@@ -189,13 +199,13 @@ export const scheduleManagerDeadlineWarning = task({
         deadline: string;
     }) => {
         const activityRes = await pool.query(
-            `SELECT a.type FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+            `SELECT a.type FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        WHERE ca.id = $1`,
             [payload.courseActivityId],
         );
 
-        if (!activityRes.rows.length) {
+        if (!activityRes.rowCount || activityRes.rowCount < 1) {
             throw new Error(
                 `Activity not found for courseActivityId: ${payload.courseActivityId}`,
             );
@@ -213,16 +223,16 @@ export const scheduleManagerDeadlineWarning = task({
             return;
         }
 
+        const formattedDeadlineIST = convertUTCToISTString(new Date(payload.deadline));
+
         await sendManagerDeadlineWarning.trigger(
             {
                 courseActivityId: payload.courseActivityId,
                 runId: payload.runId,
-                deadline: payload.deadline,
+                deadline: formattedDeadlineIST,
             },
             {
-                delay: new Date(
-                    new Date(payload.deadline).getTime() - 30 * 60 * 1000,
-                ).toISOString(),
+                delay: new Date(new Date(payload.deadline).getTime() - 30 * 60 * 1000).toISOString(),
                 tags: [
                     `run_${payload.runId}`,
                     `activity_${payload.courseActivityId}`,
@@ -233,6 +243,7 @@ export const scheduleManagerDeadlineWarning = task({
                     courseActivityId: payload.courseActivityId,
                     deadline: payload.deadline,
                     type: 'manager_deadline_warning',
+                    formattedDeadlineIST: formattedDeadlineIST,
                 },
             },
         );
@@ -248,15 +259,15 @@ export const sendManagerDeadlineWarning = task({
     }) => {
         const activityRes = await pool.query(
             `SELECT a.id as activity_id, a.type, a.payload, ca.order, c.id as course_id, c.name as course_name
-       FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+       FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        JOIN courses c ON ca.course_id = c.id
        WHERE ca.id = $1`,
             [payload.courseActivityId],
         );
         const activity = activityRes.rows[0];
 
-        if (!activity) {
+        if (!activityRes.rowCount || activityRes.rowCount < 1) {
             throw new Error(
                 `Activity not found for courseActivityId: ${payload.courseActivityId}`,
             );
@@ -311,32 +322,34 @@ export const sendManagerDeadlineWarning = task({
 
         const results = await Promise.allSettled(
             managersRes.rows.map(async (manager) => {
+                const errors: Error[] = [];
+                const template = emailTemplates.adminDeadline(
+                    activityName,
+                    runName,
+                    payload.deadline,
+                );
+
                 try {
-                    const template = emailTemplates.adminDeadline(
-                        activityName,
-                        runName,
-                        payload.deadline,
-                    );
-
-                    try {
-                        await notificationService.sendPushNotification(
-                            manager.id,
-                            {
-                                title: `Upcoming deadline for "${activityName}" in "${runName}"`,
-                                body: `Hi ${manager.name || ''}, the activity "${activityName}" in "${runName}" is due in 30 minutes (at ${payload.deadline}).`,
-                                data: {
-                                    courseActivityId: payload.courseActivityId,
-                                    deadline: payload.deadline,
-                                },
+                    await notificationService.sendPushNotification(
+                        manager.id,
+                        {
+                            title: `Upcoming deadline for "${activityName}" in "${runName}"`,
+                            body: `Hi ${manager.name || ''}, the activity "${activityName}" in "${runName}" is due in 30 minutes (at ${payload.deadline}).`,
+                            data: {
+                                courseActivityId: payload.courseActivityId,
+                                deadline: payload.deadline,
                             },
-                        );
-                    } catch (pushError) {
-                        console.error(
-                            ` Failed to send push notification to manager: ${manager.id}`,
-                            pushError,
-                        );
-                    }
+                        },
+                    );
+                } catch (pushError) {
+                    console.error(
+                        ` Failed to send push notification to manager: ${manager.id}`,
+                        pushError,
+                    );
+                    errors.push(pushError as Error);
+                }
 
+                try {
                     await notificationService.sendEmailNotification(
                         manager.id,
                         template.subject,
@@ -344,12 +357,18 @@ export const sendManagerDeadlineWarning = task({
                         template.subheading,
                         template.body,
                     );
-                } catch (error) {
+                } catch (emailError) {
                     console.error(
-                        ` Failed to notify manager: ${manager.id}`,
-                        error,
+                        ` Failed to send email notification to manager: ${manager.id}`,
+                        emailError,
                     );
-                    throw error;
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to manager ${manager.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
                 }
             }),
         );
@@ -378,8 +397,8 @@ export const notifyScorePublished = task({
                   c.id as course_id, c.name as course_name, 
                   cr.name as run_name, cr.group_id,
                   g.name as group_name
-           FROM activities a
-           JOIN "course-activities" ca ON ca.activity_id = a.id
+           FROM "course-activities" ca
+           JOIN activities a ON a.id = ca.activity_id
            JOIN courses c ON ca.course_id = c.id
            JOIN "course-runs" cr ON cr.id = $2
            JOIN groups g ON cr.group_id = g.id
@@ -436,28 +455,30 @@ export const notifyScorePublished = task({
 
         const results = await Promise.allSettled(
             studentsRes.rows.map(async (student) => {
+                const errors: Error[] = [];
+                const template = emailTemplates.scorePublished(
+                    activityName,
+                    runName,
+                );
+
                 try {
-                    const template = emailTemplates.scorePublished(
-                        activityName,
-                        runName,
+                    await notificationService.sendPushNotification(
+                        student.id,
+                        {
+                            title: `Score Published: ${activityName}`,
+                            body: `Hi ${student.name || ''}, your score for "${activityName}" in "${runName}" has been published. Check your mail for more details!`,
+                            data: { courseActivityId, runId },
+                        },
                     );
+                } catch (pushError) {
+                    console.error(
+                        `Failed to send push notification to student: ${student.id}`,
+                        pushError,
+                    );
+                    errors.push(pushError as Error);
+                }
 
-                    try {
-                        await notificationService.sendPushNotification(
-                            student.id,
-                            {
-                                title: `Score Published: ${activityName}`,
-                                body: `Hi ${student.name || ''}, your score for "${activityName}" in "${runName}" has been published. Check your mail for more details!`,
-                                data: { courseActivityId, runId },
-                            },
-                        );
-                    } catch (pushError) {
-                        console.error(
-                            `Failed to send push notification to student: ${student.id}`,
-                            pushError,
-                        );
-                    }
-
+                try {
                     await notificationService.sendEmailNotification(
                         student.id,
                         template.subject,
@@ -465,12 +486,18 @@ export const notifyScorePublished = task({
                         template.subheading,
                         template.body,
                     );
-                } catch (error) {
+                } catch (emailError) {
                     console.error(
-                        ` Failed to notify student: ${student.id}`,
-                        error,
+                        ` Failed to send email notification to student: ${student.id}`,
+                        emailError,
                     );
-                    throw error;
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
                 }
             }),
         );
@@ -502,8 +529,8 @@ export const notifyActivityPosted = task({
               c.id as course_id, c.name as course_name, 
               cr.name as run_name, cr.group_id,
               g.name as group_name
-       FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+       FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        JOIN courses c ON ca.course_id = c.id
        JOIN "course-runs" cr ON cr.id = $2
        JOIN groups g ON cr.group_id = g.id
@@ -553,32 +580,56 @@ export const notifyActivityPosted = task({
         );
         await Promise.allSettled(
             studentsRes.rows.map(async (student) => {
+                const errors: Error[] = [];
                 const template = emailTemplates.activityPosted(
                     activityName,
                     runName,
                 );
-                await notificationService.sendPushNotification(student.id, {
-                    title: `New Activity: ${activityName}`,
-                    body: `Hi ${student.name || ''}, a new activity "${activityName}" has been added to "${runName}". Check it out!`,
-                    data: { courseActivityId, runId },
-                });
-                await notificationService.sendEmailNotification(
-                    student.id,
-                    template.subject,
-                    template.heading,
-                    template.subheading,
-                    template.body,
-                );
+
+                try {
+                    await notificationService.sendPushNotification(student.id, {
+                        title: `New Activity: ${activityName}`,
+                        body: `Hi ${student.name || ''}, a new activity "${activityName}" has been added to "${runName}". Check it out!`,
+                        data: { courseActivityId, runId },
+                    });
+                } catch (pushError) {
+                    console.error(
+                        `Failed to send push notification to studentId: ${student.id}`,
+                        pushError,
+                    );
+                    errors.push(pushError as Error);
+                }
+
+                try {
+                    await notificationService.sendEmailNotification(
+                        student.id,
+                        template.subject,
+                        template.heading,
+                        template.subheading,
+                        template.body,
+                    );
+                } catch (emailError) {
+                    console.error(
+                        `Failed to send email notification to studentId: ${student.id}`,
+                        emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
+                }
             }),
         );
     },
 });
-
 export const notifyRedoEnabled = task({
     id: 'notify-redo-enabled',
     run: async (payload: {
         userId: string;
-        activityId: number;
+        courseActivityId: number;
         newDeadline: string;
         runId: number;
     }) => {
@@ -586,13 +637,13 @@ export const notifyRedoEnabled = task({
             `SELECT ca.id as course_activity_id, c.id as course_id, c.name as course_name
        FROM "course-activities" ca
        JOIN courses c ON ca.course_id = c.id
-       WHERE ca.activity_id = $1`,
-            [payload.activityId],
+       WHERE ca.id = $1`,
+            [payload.courseActivityId],
         );
 
         if (!courseActivitiesRes.rows.length) {
             console.error(
-                `No course activities found for activity ID: ${payload.activityId}`,
+                `No course activities found for courseActivity ID: ${payload.courseActivityId}`,
             );
             return;
         }
@@ -600,8 +651,8 @@ export const notifyRedoEnabled = task({
         const courseActivityId = courseActivitiesRes.rows[0].course_activity_id;
         const result = await pool.query(
             `SELECT a.id as activity_id, a.type, a.payload, ca.order, c.id as course_id, c.name as course_name
-       FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+       FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        JOIN courses c ON ca.course_id = c.id
        WHERE ca.id = $1`,
             [courseActivityId],
@@ -609,7 +660,7 @@ export const notifyRedoEnabled = task({
         const activity = result.rows[0];
         if (!activity) {
             throw new Error(
-                `Activity not found for activityId: ${payload.activityId}`,
+                `Activity not found for courseActivityId: ${payload.courseActivityId}`,
             );
         }
 
@@ -618,21 +669,21 @@ export const notifyRedoEnabled = task({
             parsed = JSON.parse(activity.payload || '{}');
         } catch (error) {
             throw new Error(
-                `Failed to parse activity payload for activityId ${payload.activityId}: ${error}`,
+                `Failed to parse activity payload for activityId ${payload.courseActivityId}: ${error}`,
             );
         }
 
         const activityName = parsed.title;
         if (!activityName) {
             throw new Error(
-                `Activity title not found in payload for activityId: ${payload.activityId}`,
+                `Activity title not found in payload for activityId: ${payload.courseActivityId}`,
             );
         }
 
         const courseName = activity.course_name;
         if (!courseName) {
             throw new Error(
-                `Course name not found for activityId: ${payload.activityId}`,
+                `Course name not found for activityId: ${payload.courseActivityId}`,
             );
         }
 
@@ -652,30 +703,57 @@ export const notifyRedoEnabled = task({
         }
 
         const notificationService = new NotificationService(pool);
+        const formattedDeadlineIST = convertUTCToISTString(
+            new Date(payload.newDeadline)
+        );
 
         const courseInfo = runName ? runName : courseName;
         const template = emailTemplates.redoEnabled(
             activityName,
-            payload.newDeadline,
+            formattedDeadlineIST,
             courseInfo,
         );
 
-        await notificationService.sendPushNotification(payload.userId, {
-            title: `Redo enabled for "${activityName}" in "${courseInfo}"`,
-            body: `Hi ${userName}, redo for activity "${activityName}" is enabled. New deadline: ${payload.newDeadline}.`,
-            data: {
-                activityId: payload.activityId.toString(),
-                newDeadline: payload.newDeadline,
-            },
-        });
+        const errors: Error[] = [];
 
-        await notificationService.sendEmailNotification(
-            payload.userId,
-            template.subject,
-            template.heading,
-            template.subheading,
-            template.body,
-        );
+        try {
+            await notificationService.sendPushNotification(payload.userId, {
+                title: `Redo enabled for "${activityName}" in "${courseInfo}"`,
+                body: `Hi ${userName}, redo for activity "${activityName}" is enabled. New deadline: ${formattedDeadlineIST}.`,
+                data: {
+                    activityId: payload.courseActivityId.toString(),
+                    newDeadline: payload.newDeadline,
+                },
+            });
+        } catch (pushError) {
+            console.error(
+                `Failed to send push notification to userId: ${payload.userId}`,
+                pushError,
+            );
+            errors.push(pushError as Error);
+        }
+
+        try {
+            await notificationService.sendEmailNotification(
+                payload.userId,
+                template.subject,
+                template.heading,
+                template.subheading,
+                template.body,
+            );
+        } catch (emailError) {
+            console.error(
+                `Failed to send email notification to userId: ${payload.userId}`,
+                emailError,
+            );
+            errors.push(emailError as Error);
+        }
+
+        if (errors.length > 0) {
+            throw new Error(
+                `Failed to send ${errors.length} notification(s) to user ${payload.userId}: ${errors.map(e => e.message).join('; ')}`
+            );
+        }
     },
 });
 
@@ -712,19 +790,43 @@ export const notifyStudentOnAddedToGroup = task({
         }
         const notificationService = new NotificationService(pool);
         const template = emailTemplates.addedToGroup(groupName);
+        const errors: Error[] = [];
 
-        await notificationService.sendPushNotification(student.id, {
-            title: `You've been added to group: ${groupName}`,
-            body: `Hi ${student.name || ''}, you have been added to group "${groupName}". Check your dashboard for details!`,
-            data: { groupId },
-        });
-        await notificationService.sendEmailNotification(
-            student.id,
-            template.subject,
-            template.heading,
-            template.subheading,
-            template.body,
-        );
+        try {
+            await notificationService.sendPushNotification(student.id, {
+                title: `You've been added to group: ${groupName}`,
+                body: `Hi ${student.name || ''}, you have been added to group "${groupName}". Check your dashboard for details!`,
+                data: { groupId },
+            });
+        } catch (pushError) {
+            console.error(
+                `Failed to send push notification to studentId: ${student.id}`,
+                pushError,
+            );
+            errors.push(pushError as Error);
+        }
+
+        try {
+            await notificationService.sendEmailNotification(
+                student.id,
+                template.subject,
+                template.heading,
+                template.subheading,
+                template.body,
+            );
+        } catch (emailError) {
+            console.error(
+                `Failed to send email notification to studentId: ${student.id}`,
+                emailError,
+            );
+            errors.push(emailError as Error);
+        }
+
+        if (errors.length > 0) {
+            throw new Error(
+                `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+            );
+        }
     },
 });
 
@@ -774,34 +876,84 @@ export const notifyNewDocumentAdded = task({
 
         await Promise.allSettled(
             studentsRes.rows.map(async (student) => {
-                await notificationService.sendPushNotification(student.id, {
-                    title: `New Document Added: ${documentName}`,
-                    body: `Hi ${student.name || ''}, a new document "${documentName}" has been added to your course. Check it out!`,
-                    data: { documentName, runId },
-                });
-                await notificationService.sendEmailNotification(
-                    student.id,
-                    template.subject,
-                    template.heading,
-                    template.subheading,
-                    template.body,
-                );
+                const errors: Error[] = [];
+
+                try {
+                    await notificationService.sendPushNotification(student.id, {
+                        title: `New Document Added: ${documentName}`,
+                        body: `Hi ${student.name || ''}, a new document "${documentName}" has been added to your course. Check it out!`,
+                        data: { documentName, runId },
+                    });
+                } catch (pushError) {
+                    console.error(
+                        `Failed to send push notification to studentId: ${student.id}`,
+                        pushError,
+                    );
+                    errors.push(pushError as Error);
+                }
+
+                try {
+                    await notificationService.sendEmailNotification(
+                        student.id,
+                        template.subject,
+                        template.heading,
+                        template.subheading,
+                        template.body,
+                    );
+                } catch (emailError) {
+                    console.error(
+                        `Failed to send email notification to studentId: ${student.id}`,
+                        emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
+                }
             }),
         );
         await Promise.allSettled(
             managersRes.rows.map(async (manager) => {
-                await notificationService.sendPushNotification(manager.id, {
-                    title: `New Document Added: ${documentName}`,
-                    body: `Hi ${manager.name || ''}, a new document "${documentName}" has been added to your course.`,
-                    data: { documentName, runId },
-                });
-                await notificationService.sendEmailNotification(
-                    manager.id,
-                    template.subject,
-                    template.heading,
-                    template.subheading,
-                    template.body,
-                );
+                const errors: Error[] = [];
+
+                try {
+                    await notificationService.sendPushNotification(manager.id, {
+                        title: `New Document Added: ${documentName}`,
+                        body: `Hi ${manager.name || ''}, a new document "${documentName}" has been added to your course.`,
+                        data: { documentName, runId },
+                    });
+                } catch (pushError) {
+                    console.error(
+                        `Failed to send push notification to managerId: ${manager.id}`,
+                        pushError,
+                    );
+                    errors.push(pushError as Error);
+                }
+
+                try {
+                    await notificationService.sendEmailNotification(
+                        manager.id,
+                        template.subject,
+                        template.heading,
+                        template.subheading,
+                        template.body,
+                    );
+                } catch (emailError) {
+                    console.error(
+                        `Failed to send email notification to managerId: ${manager.id}`,
+                        emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to manager ${manager.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
+                }
             }),
         );
     },
@@ -817,19 +969,28 @@ export const scheduleNotifyMissedDeadline = task({
         const { courseActivityId, runId, deadline } = payload;
 
         const activityRes = await pool.query(
-            `SELECT a.type FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+            `SELECT a.type, ca.activity_id as ca_activity_id 
+       FROM "course-activities" ca
+       LEFT JOIN activities a ON a.id = ca.activity_id
        WHERE ca.id = $1`,
             [courseActivityId],
         );
 
-        if (!activityRes.rows.length) {
+        if (!activityRes.rowCount || activityRes.rowCount < 1) {
             throw new Error(
-                `Activity not found for courseActivityId: ${courseActivityId}`,
+                `Course activity not found for courseActivityId: ${courseActivityId}`,
             );
         }
 
-        const activityType = activityRes.rows[0].type;
+        const row = activityRes.rows[0];
+
+        if (!row.type) {
+            throw new Error(
+                `Activity not found - course_activity ${courseActivityId} references activity_id ${row.ca_activity_id} which doesn't exist in activities table`,
+            );
+        }
+
+        const activityType = row.type;
         if (
             activityType !== 'quiz' &&
             activityType !== 'assignment' &&
@@ -841,10 +1002,12 @@ export const scheduleNotifyMissedDeadline = task({
             return;
         }
 
+        const formattedDeadlineIST = convertUTCToISTString(new Date(deadline));
+
         await notifyMissedDeadline.trigger(
-            { courseActivityId, runId, deadline },
+            { courseActivityId, runId, deadline: formattedDeadlineIST },
             {
-                delay: new Date(deadline).toISOString(),
+                delay: deadline,
                 tags: [
                     `run_${runId}`,
                     `activity_${courseActivityId}`,
@@ -855,6 +1018,7 @@ export const scheduleNotifyMissedDeadline = task({
                     courseActivityId,
                     deadline,
                     type: 'missed_deadline_notification',
+                    formattedDeadlineIST: formattedDeadlineIST,
                 },
             },
         );
@@ -875,8 +1039,8 @@ export const notifyMissedDeadline = task({
               c.id as course_id, c.name as course_name, 
               cr.name as run_name, cr.group_id,
               g.name as group_name
-       FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+       FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        JOIN courses c ON ca.course_id = c.id
        JOIN "course-runs" cr ON cr.id = $2
        JOIN groups g ON cr.group_id = g.id
@@ -964,23 +1128,26 @@ export const notifyMissedDeadline = task({
 
         const results = await Promise.allSettled(
             studentsToNotify.map(async (student) => {
-                try {
-                    try {
-                        await notificationService.sendPushNotification(
-                            student.id,
-                            {
-                                title: `Missed Deadline: ${activityName}`,
-                                body: `Hi ${student.name || ''}, you missed the deadline for "${activityName}" in "${runName}". Please check with your facilitator for next steps.`,
-                                data: { courseActivityId, runId, deadline },
-                            },
-                        );
-                    } catch (pushError) {
-                        console.error(
-                            ` Failed to send push notification to studentId: ${student.id}`,
-                            pushError,
-                        );
-                    }
+                const errors: Error[] = [];
 
+                try {
+                    await notificationService.sendPushNotification(
+                        student.id,
+                        {
+                            title: `Missed Deadline: ${activityName}`,
+                            body: `Hi ${student.name || ''}, you missed the deadline for \"${activityName}\" in \"${runName}\". Please check with your facilitator for next steps.`,
+                            data: { courseActivityId, runId, deadline },
+                        },
+                    );
+                } catch (pushError) {
+                    console.error(
+                        ` Failed to send push notification to studentId: ${student.id}`,
+                        pushError,
+                    );
+                    errors.push(pushError as Error);
+                }
+
+                try {
                     await notificationService.sendEmailNotification(
                         student.id,
                         template.subject,
@@ -988,12 +1155,18 @@ export const notifyMissedDeadline = task({
                         template.subheading,
                         template.body,
                     );
-                } catch (error) {
+                } catch (emailError) {
                     console.error(
-                        ` Failed to notify studentId: ${student.id}`,
-                        error,
+                        ` Failed to send email notification to studentId: ${student.id}`,
+                        emailError,
                     );
-                    throw error;
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
                 }
             }),
         );
@@ -1022,13 +1195,13 @@ export const notifyFacilitatorPostDeadlineSummary = task({
         const { courseActivityId, runId, deadline } = payload;
 
         const res = await pool.query(
-            `SELECT a.id as activity_id, a.type, a.payload, 
-              ca.id as course_activity_id, 
-              c.id as course_id, c.name as course_name, 
-              cr.name as run_name, cr.group_id,
-              g.name as group_name
-       FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+            `SELECT a.id as activity_id, a.type, a.payload,
+                            ca.id as course_activity_id,
+                            c.id as course_id, c.name as course_name,
+                            cr.name as run_name, cr.group_id,
+                            g.name as group_name
+       FROM "course-activities" ca
+       JOIN activities a ON a.id = ca.activity_id
        JOIN courses c ON ca.course_id = c.id
        JOIN "course-runs" cr ON cr.id = $2
        JOIN groups g ON cr.group_id = g.id
@@ -1038,7 +1211,7 @@ export const notifyFacilitatorPostDeadlineSummary = task({
         const row = res.rows[0];
         if (!row) {
             throw new Error(
-                `Activity data not found for courseActivityId: ${courseActivityId}, runId: ${runId}`,
+                `Activity data not found for courseActivityId: ${courseActivityId}, runId: ${runId} `,
             );
         }
 
@@ -1047,14 +1220,14 @@ export const notifyFacilitatorPostDeadlineSummary = task({
             parsed = JSON.parse(row.payload || '{}');
         } catch (error) {
             throw new Error(
-                `Failed to parse activity payload for courseActivityId ${courseActivityId}: ${error}`,
+                `Failed to parse activity payload for courseActivityId ${courseActivityId}: ${error} `,
             );
         }
 
         const activityName = parsed.title;
         if (!activityName) {
             throw new Error(
-                `Activity title not found in payload for courseActivityId: ${courseActivityId}`,
+                `Activity title not found in payload for courseActivityId: ${courseActivityId} `,
             );
         }
 
@@ -1064,11 +1237,11 @@ export const notifyFacilitatorPostDeadlineSummary = task({
         const courseId = row.course_id;
 
         if (!runName) {
-            throw new Error(`Run name not found for runId: ${runId}`);
+            throw new Error(`Run name not found for runId: ${runId} `);
         }
         if (!groupId || !courseId) {
             throw new Error(
-                `Group or Course not found for courseActivityId: ${courseActivityId}, runId: ${runId}`,
+                `Group or Course not found for courseActivityId: ${courseActivityId}, runId: ${runId} `,
             );
         }
 
@@ -1130,18 +1303,43 @@ export const notifyFacilitatorPostDeadlineSummary = task({
 
         await Promise.allSettled(
             facilitatorsRes.rows.map(async (facilitator) => {
-                await notificationService.sendPushNotification(facilitator.id, {
-                    title: `Graded activity deadline passed: ${activityName}`,
-                    body: `Activity "${activityName}" in "${runName}" deadline passed. Submitted: ${submitted}, Not submitted: ${notSubmitted}`,
-                    data: { courseActivityId, submitted, notSubmitted },
-                });
-                await notificationService.sendEmailNotification(
-                    facilitator.id,
-                    template.subject,
-                    template.heading,
-                    template.subheading,
-                    template.body,
-                );
+                const errors: Error[] = [];
+
+                try {
+                    await notificationService.sendPushNotification(facilitator.id, {
+                        title: `Graded activity deadline passed: ${activityName} `,
+                        body: `Activity "${activityName}" in "${runName}" deadline passed.Submitted: ${submitted}, Not submitted: ${notSubmitted} `,
+                        data: { courseActivityId, submitted, notSubmitted },
+                    });
+                } catch (pushError) {
+                    console.error(
+                        `Failed to send push notification to facilitatorId: ${facilitator.id}`,
+                        pushError,
+                    );
+                    errors.push(pushError as Error);
+                }
+
+                try {
+                    await notificationService.sendEmailNotification(
+                        facilitator.id,
+                        template.subject,
+                        template.heading,
+                        template.subheading,
+                        template.body,
+                    );
+                } catch (emailError) {
+                    console.error(
+                        `Failed to send email notification to facilitatorId: ${facilitator.id}`,
+                        emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to facilitator ${facilitator.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
+                }
             }),
         );
     },
@@ -1157,19 +1355,28 @@ export const scheduleNotifyFacilitatorPostDeadlineSummary = task({
         const { courseActivityId, runId, deadline } = payload;
 
         const activityRes = await pool.query(
-            `SELECT a.type FROM activities a
-       JOIN "course-activities" ca ON ca.activity_id = a.id
+            `SELECT a.type, ca.activity_id as ca_activity_id 
+       FROM "course-activities" ca
+       LEFT JOIN activities a ON a.id = ca.activity_id
        WHERE ca.id = $1`,
             [courseActivityId],
         );
 
-        if (!activityRes.rows.length) {
+        if (!activityRes.rowCount || activityRes.rowCount < 1) {
             throw new Error(
-                `Activity not found for courseActivityId: ${courseActivityId}`,
+                `Course activity not found for courseActivityId: ${courseActivityId} `,
             );
         }
 
-        const activityType = activityRes.rows[0].type;
+        const row = activityRes.rows[0];
+
+        if (!row.type) {
+            throw new Error(
+                `Activity not found - course_activity ${courseActivityId} references activity_id ${row.ca_activity_id} which doesn't exist in activities table`,
+            );
+        }
+
+        const activityType = row.type;
         if (
             activityType !== 'quiz' &&
             activityType !== 'assignment' &&
@@ -1181,10 +1388,12 @@ export const scheduleNotifyFacilitatorPostDeadlineSummary = task({
             return;
         }
 
+        const formattedDeadlineIST = convertUTCToISTString(new Date(deadline));
+
         await notifyFacilitatorPostDeadlineSummary.trigger(
-            { courseActivityId, runId, deadline },
+            { courseActivityId, runId, deadline: formattedDeadlineIST },
             {
-                delay: new Date(deadline).toISOString(),
+                delay: deadline,
                 tags: [
                     `run_${runId}`,
                     `activity_${courseActivityId}`,
@@ -1195,6 +1404,7 @@ export const scheduleNotifyFacilitatorPostDeadlineSummary = task({
                     courseActivityId,
                     deadline,
                     activityType,
+                    formattedDeadlineIST: formattedDeadlineIST,
                     type: 'facilitator_post_deadline_summary',
                 },
             },
@@ -1239,10 +1449,10 @@ export const notifyFacilitatorEndOfCourseRunFinalize = task({
 
         const endDate = row.end_date
             ? new Date(row.end_date).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-              })
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            })
             : '';
 
         const facilitatorsRes = await pool.query(
@@ -1261,18 +1471,43 @@ export const notifyFacilitatorEndOfCourseRunFinalize = task({
 
         await Promise.allSettled(
             facilitatorsRes.rows.map(async (facilitator) => {
-                await notificationService.sendPushNotification(facilitator.id, {
-                    title: `Course run finalized: ${runName}`,
-                    body: `The course run "${runName}" for course "${courseName}" has been finalized. Please check the dashboard for details.`,
-                    data: { courseRunId },
-                });
-                await notificationService.sendEmailNotification(
-                    facilitator.id,
-                    template.subject,
-                    template.heading,
-                    template.subheading,
-                    template.body,
-                );
+                const errors: Error[] = [];
+
+                try {
+                    await notificationService.sendPushNotification(facilitator.id, {
+                        title: `Course run finalized: ${runName}`,
+                        body: `The course run "${runName}" for course "${courseName}" has been finalized. Please check the dashboard for details.`,
+                        data: { courseRunId },
+                    });
+                } catch (pushError) {
+                    console.error(
+                        `Failed to send push notification to facilitatorId: ${facilitator.id}`,
+                        pushError,
+                    );
+                    errors.push(pushError as Error);
+                }
+
+                try {
+                    await notificationService.sendEmailNotification(
+                        facilitator.id,
+                        template.subject,
+                        template.heading,
+                        template.subheading,
+                        template.body,
+                    );
+                } catch (emailError) {
+                    console.error(
+                        `Failed to send email notification to facilitatorId: ${facilitator.id}`,
+                        emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to facilitator ${facilitator.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
+                }
             }),
         );
     },
