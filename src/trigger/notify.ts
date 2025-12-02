@@ -126,6 +126,7 @@ export const sendStudentDeadlineNotification = task({
 
         const results = await Promise.allSettled(
             studentsRes.rows.map(async (student) => {
+                const errors: Error[] = [];
                 const template = emailTemplates.deadlineSoon(
                     activityName,
                     runName,
@@ -149,6 +150,7 @@ export const sendStudentDeadlineNotification = task({
                         ` Failed to send push notification to studentId: ${student.id}`,
                         pushError,
                     );
+                    errors.push(pushError as Error);
                 }
 
                 try {
@@ -163,6 +165,13 @@ export const sendStudentDeadlineNotification = task({
                     console.error(
                         ` Failed to send email notification to studentId: ${student.id}`,
                         emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
                     );
                 }
             }),
@@ -313,6 +322,7 @@ export const sendManagerDeadlineWarning = task({
 
         const results = await Promise.allSettled(
             managersRes.rows.map(async (manager) => {
+                const errors: Error[] = [];
                 const template = emailTemplates.adminDeadline(
                     activityName,
                     runName,
@@ -336,6 +346,7 @@ export const sendManagerDeadlineWarning = task({
                         ` Failed to send push notification to manager: ${manager.id}`,
                         pushError,
                     );
+                    errors.push(pushError as Error);
                 }
 
                 try {
@@ -350,6 +361,13 @@ export const sendManagerDeadlineWarning = task({
                     console.error(
                         ` Failed to send email notification to manager: ${manager.id}`,
                         emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to manager ${manager.id}: ${errors.map(e => e.message).join('; ')}`
                     );
                 }
             }),
@@ -437,6 +455,7 @@ export const notifyScorePublished = task({
 
         const results = await Promise.allSettled(
             studentsRes.rows.map(async (student) => {
+                const errors: Error[] = [];
                 const template = emailTemplates.scorePublished(
                     activityName,
                     runName,
@@ -456,6 +475,7 @@ export const notifyScorePublished = task({
                         `Failed to send push notification to student: ${student.id}`,
                         pushError,
                     );
+                    errors.push(pushError as Error);
                 }
 
                 try {
@@ -470,6 +490,13 @@ export const notifyScorePublished = task({
                     console.error(
                         ` Failed to send email notification to student: ${student.id}`,
                         emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
                     );
                 }
             }),
@@ -553,6 +580,7 @@ export const notifyActivityPosted = task({
         );
         await Promise.allSettled(
             studentsRes.rows.map(async (student) => {
+                const errors: Error[] = [];
                 const template = emailTemplates.activityPosted(
                     activityName,
                     runName,
@@ -569,6 +597,7 @@ export const notifyActivityPosted = task({
                         `Failed to send push notification to studentId: ${student.id}`,
                         pushError,
                     );
+                    errors.push(pushError as Error);
                 }
 
                 try {
@@ -583,6 +612,13 @@ export const notifyActivityPosted = task({
                     console.error(
                         `Failed to send email notification to studentId: ${student.id}`,
                         emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
                     );
                 }
             }),
@@ -678,6 +714,8 @@ export const notifyRedoEnabled = task({
             courseInfo,
         );
 
+        const errors: Error[] = [];
+
         try {
             await notificationService.sendPushNotification(payload.userId, {
                 title: `Redo enabled for "${activityName}" in "${courseInfo}"`,
@@ -692,6 +730,7 @@ export const notifyRedoEnabled = task({
                 `Failed to send push notification to userId: ${payload.userId}`,
                 pushError,
             );
+            errors.push(pushError as Error);
         }
 
         try {
@@ -706,6 +745,13 @@ export const notifyRedoEnabled = task({
             console.error(
                 `Failed to send email notification to userId: ${payload.userId}`,
                 emailError,
+            );
+            errors.push(emailError as Error);
+        }
+
+        if (errors.length > 0) {
+            throw new Error(
+                `Failed to send ${errors.length} notification(s) to user ${payload.userId}: ${errors.map(e => e.message).join('; ')}`
             );
         }
     },
@@ -744,6 +790,7 @@ export const notifyStudentOnAddedToGroup = task({
         }
         const notificationService = new NotificationService(pool);
         const template = emailTemplates.addedToGroup(groupName);
+        const errors: Error[] = [];
 
         try {
             await notificationService.sendPushNotification(student.id, {
@@ -756,6 +803,7 @@ export const notifyStudentOnAddedToGroup = task({
                 `Failed to send push notification to studentId: ${student.id}`,
                 pushError,
             );
+            errors.push(pushError as Error);
         }
 
         try {
@@ -770,6 +818,13 @@ export const notifyStudentOnAddedToGroup = task({
             console.error(
                 `Failed to send email notification to studentId: ${student.id}`,
                 emailError,
+            );
+            errors.push(emailError as Error);
+        }
+
+        if (errors.length > 0) {
+            throw new Error(
+                `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
             );
         }
     },
@@ -821,6 +876,8 @@ export const notifyNewDocumentAdded = task({
 
         await Promise.allSettled(
             studentsRes.rows.map(async (student) => {
+                const errors: Error[] = [];
+
                 try {
                     await notificationService.sendPushNotification(student.id, {
                         title: `New Document Added: ${documentName}`,
@@ -832,6 +889,7 @@ export const notifyNewDocumentAdded = task({
                         `Failed to send push notification to studentId: ${student.id}`,
                         pushError,
                     );
+                    errors.push(pushError as Error);
                 }
 
                 try {
@@ -847,11 +905,20 @@ export const notifyNewDocumentAdded = task({
                         `Failed to send email notification to studentId: ${student.id}`,
                         emailError,
                     );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                    );
                 }
             }),
         );
         await Promise.allSettled(
             managersRes.rows.map(async (manager) => {
+                const errors: Error[] = [];
+
                 try {
                     await notificationService.sendPushNotification(manager.id, {
                         title: `New Document Added: ${documentName}`,
@@ -863,6 +930,7 @@ export const notifyNewDocumentAdded = task({
                         `Failed to send push notification to managerId: ${manager.id}`,
                         pushError,
                     );
+                    errors.push(pushError as Error);
                 }
 
                 try {
@@ -877,6 +945,13 @@ export const notifyNewDocumentAdded = task({
                     console.error(
                         `Failed to send email notification to managerId: ${manager.id}`,
                         emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to manager ${manager.id}: ${errors.map(e => e.message).join('; ')}`
                     );
                 }
             }),
@@ -1053,6 +1128,8 @@ export const notifyMissedDeadline = task({
 
         const results = await Promise.allSettled(
             studentsToNotify.map(async (student) => {
+                const errors: Error[] = [];
+
                 try {
                     await notificationService.sendPushNotification(
                         student.id,
@@ -1067,6 +1144,7 @@ export const notifyMissedDeadline = task({
                         ` Failed to send push notification to studentId: ${student.id}`,
                         pushError,
                     );
+                    errors.push(pushError as Error);
                 }
 
                 try {
@@ -1081,6 +1159,13 @@ export const notifyMissedDeadline = task({
                     console.error(
                         ` Failed to send email notification to studentId: ${student.id}`,
                         emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
                     );
                 }
             }),
@@ -1218,6 +1303,8 @@ export const notifyFacilitatorPostDeadlineSummary = task({
 
         await Promise.allSettled(
             facilitatorsRes.rows.map(async (facilitator) => {
+                const errors: Error[] = [];
+
                 try {
                     await notificationService.sendPushNotification(facilitator.id, {
                         title: `Graded activity deadline passed: ${activityName} `,
@@ -1229,6 +1316,7 @@ export const notifyFacilitatorPostDeadlineSummary = task({
                         `Failed to send push notification to facilitatorId: ${facilitator.id}`,
                         pushError,
                     );
+                    errors.push(pushError as Error);
                 }
 
                 try {
@@ -1243,6 +1331,13 @@ export const notifyFacilitatorPostDeadlineSummary = task({
                     console.error(
                         `Failed to send email notification to facilitatorId: ${facilitator.id}`,
                         emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to facilitator ${facilitator.id}: ${errors.map(e => e.message).join('; ')}`
                     );
                 }
             }),
@@ -1376,6 +1471,8 @@ export const notifyFacilitatorEndOfCourseRunFinalize = task({
 
         await Promise.allSettled(
             facilitatorsRes.rows.map(async (facilitator) => {
+                const errors: Error[] = [];
+
                 try {
                     await notificationService.sendPushNotification(facilitator.id, {
                         title: `Course run finalized: ${runName}`,
@@ -1387,6 +1484,7 @@ export const notifyFacilitatorEndOfCourseRunFinalize = task({
                         `Failed to send push notification to facilitatorId: ${facilitator.id}`,
                         pushError,
                     );
+                    errors.push(pushError as Error);
                 }
 
                 try {
@@ -1401,6 +1499,13 @@ export const notifyFacilitatorEndOfCourseRunFinalize = task({
                     console.error(
                         `Failed to send email notification to facilitatorId: ${facilitator.id}`,
                         emailError,
+                    );
+                    errors.push(emailError as Error);
+                }
+
+                if (errors.length > 0) {
+                    throw new Error(
+                        `Failed to send ${errors.length} notification(s) to facilitator ${facilitator.id}: ${errors.map(e => e.message).join('; ')}`
                     );
                 }
             }),
