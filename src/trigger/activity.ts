@@ -33,7 +33,9 @@ export const scheduleAutoSubmitUnsubmittedActivities = task({
             return;
         }
 
-        const formattedDeadlineIST = convertUTCToISTString(new Date(payload.deadline));
+        const formattedDeadlineIST = convertUTCToISTString(
+            new Date(payload.deadline),
+        );
 
         // Schedule the auto-submit task to run at the deadline
         await autoSubmitUnsubmittedActivities.trigger(
@@ -85,7 +87,6 @@ export const autoSubmitUnsubmittedActivities = task({
          RETURNING id, user_id`,
                 [now, activityId, runId],
             );
-
 
             return {
                 success: true,
@@ -154,7 +155,9 @@ export const scheduleAutoSubmitStudentRedo = task({
             return;
         }
 
-        const formattedDeadlineIST = convertUTCToISTString(new Date(payload.deadline));
+        const formattedDeadlineIST = convertUTCToISTString(
+            new Date(payload.deadline),
+        );
 
         await autoSubmitStudentRedo.trigger(
             {

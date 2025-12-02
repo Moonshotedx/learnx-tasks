@@ -36,7 +36,9 @@ export const scheduleStudentDeadlineNotification = task({
             return;
         }
 
-        const formattedDeadlineIST = convertUTCToISTString(new Date(payload.deadline));
+        const formattedDeadlineIST = convertUTCToISTString(
+            new Date(payload.deadline),
+        );
 
         await sendStudentDeadlineNotification.trigger(
             {
@@ -134,17 +136,14 @@ export const sendStudentDeadlineNotification = task({
                 );
 
                 try {
-                    await notificationService.sendPushNotification(
-                        student.id,
-                        {
-                            title: `Assignment "${activityName}" is due soon in "${runName}"`,
-                            body: `Hi ${student.name || ''}, your assignment "${activityName}" for "${runName}" is due at ${payload.deadline}. Please make sure to submit before the deadline!`,
-                            data: {
-                                courseActivityId: payload.courseActivityId,
-                                deadline: payload.deadline,
-                            },
+                    await notificationService.sendPushNotification(student.id, {
+                        title: `Assignment "${activityName}" is due soon in "${runName}"`,
+                        body: `Hi ${student.name || ''}, your assignment "${activityName}" for "${runName}" is due at ${payload.deadline}. Please make sure to submit before the deadline!`,
+                        data: {
+                            courseActivityId: payload.courseActivityId,
+                            deadline: payload.deadline,
                         },
-                    );
+                    });
                 } catch (pushError) {
                     console.error(
                         ` Failed to send push notification to studentId: ${student.id}`,
@@ -171,7 +170,7 @@ export const sendStudentDeadlineNotification = task({
 
                 if (errors.length > 0) {
                     throw new Error(
-                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map((e) => e.message).join('; ')}`,
                     );
                 }
             }),
@@ -223,7 +222,9 @@ export const scheduleManagerDeadlineWarning = task({
             return;
         }
 
-        const formattedDeadlineIST = convertUTCToISTString(new Date(payload.deadline));
+        const formattedDeadlineIST = convertUTCToISTString(
+            new Date(payload.deadline),
+        );
 
         await sendManagerDeadlineWarning.trigger(
             {
@@ -232,7 +233,9 @@ export const scheduleManagerDeadlineWarning = task({
                 deadline: formattedDeadlineIST,
             },
             {
-                delay: new Date(new Date(payload.deadline).getTime() - 30 * 60 * 1000).toISOString(),
+                delay: new Date(
+                    new Date(payload.deadline).getTime() - 30 * 60 * 1000,
+                ).toISOString(),
                 tags: [
                     `run_${payload.runId}`,
                     `activity_${payload.courseActivityId}`,
@@ -330,17 +333,14 @@ export const sendManagerDeadlineWarning = task({
                 );
 
                 try {
-                    await notificationService.sendPushNotification(
-                        manager.id,
-                        {
-                            title: `Upcoming deadline for "${activityName}" in "${runName}"`,
-                            body: `Hi ${manager.name || ''}, the activity "${activityName}" in "${runName}" is due in 30 minutes (at ${payload.deadline}).`,
-                            data: {
-                                courseActivityId: payload.courseActivityId,
-                                deadline: payload.deadline,
-                            },
+                    await notificationService.sendPushNotification(manager.id, {
+                        title: `Upcoming deadline for "${activityName}" in "${runName}"`,
+                        body: `Hi ${manager.name || ''}, the activity "${activityName}" in "${runName}" is due in 30 minutes (at ${payload.deadline}).`,
+                        data: {
+                            courseActivityId: payload.courseActivityId,
+                            deadline: payload.deadline,
                         },
-                    );
+                    });
                 } catch (pushError) {
                     console.error(
                         ` Failed to send push notification to manager: ${manager.id}`,
@@ -367,7 +367,7 @@ export const sendManagerDeadlineWarning = task({
 
                 if (errors.length > 0) {
                     throw new Error(
-                        `Failed to send ${errors.length} notification(s) to manager ${manager.id}: ${errors.map(e => e.message).join('; ')}`
+                        `Failed to send ${errors.length} notification(s) to manager ${manager.id}: ${errors.map((e) => e.message).join('; ')}`,
                     );
                 }
             }),
@@ -462,14 +462,11 @@ export const notifyScorePublished = task({
                 );
 
                 try {
-                    await notificationService.sendPushNotification(
-                        student.id,
-                        {
-                            title: `Score Published: ${activityName}`,
-                            body: `Hi ${student.name || ''}, your score for "${activityName}" in "${runName}" has been published. Check your mail for more details!`,
-                            data: { courseActivityId, runId },
-                        },
-                    );
+                    await notificationService.sendPushNotification(student.id, {
+                        title: `Score Published: ${activityName}`,
+                        body: `Hi ${student.name || ''}, your score for "${activityName}" in "${runName}" has been published. Check your mail for more details!`,
+                        data: { courseActivityId, runId },
+                    });
                 } catch (pushError) {
                     console.error(
                         `Failed to send push notification to student: ${student.id}`,
@@ -496,7 +493,7 @@ export const notifyScorePublished = task({
 
                 if (errors.length > 0) {
                     throw new Error(
-                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map((e) => e.message).join('; ')}`,
                     );
                 }
             }),
@@ -618,7 +615,7 @@ export const notifyActivityPosted = task({
 
                 if (errors.length > 0) {
                     throw new Error(
-                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map((e) => e.message).join('; ')}`,
                     );
                 }
             }),
@@ -704,7 +701,7 @@ export const notifyRedoEnabled = task({
 
         const notificationService = new NotificationService(pool);
         const formattedDeadlineIST = convertUTCToISTString(
-            new Date(payload.newDeadline)
+            new Date(payload.newDeadline),
         );
 
         const courseInfo = runName ? runName : courseName;
@@ -751,7 +748,7 @@ export const notifyRedoEnabled = task({
 
         if (errors.length > 0) {
             throw new Error(
-                `Failed to send ${errors.length} notification(s) to user ${payload.userId}: ${errors.map(e => e.message).join('; ')}`
+                `Failed to send ${errors.length} notification(s) to user ${payload.userId}: ${errors.map((e) => e.message).join('; ')}`,
             );
         }
     },
@@ -824,7 +821,7 @@ export const notifyStudentOnAddedToGroup = task({
 
         if (errors.length > 0) {
             throw new Error(
-                `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map((e) => e.message).join('; ')}`,
             );
         }
     },
@@ -910,7 +907,7 @@ export const notifyNewDocumentAdded = task({
 
                 if (errors.length > 0) {
                     throw new Error(
-                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map((e) => e.message).join('; ')}`,
                     );
                 }
             }),
@@ -951,7 +948,7 @@ export const notifyNewDocumentAdded = task({
 
                 if (errors.length > 0) {
                     throw new Error(
-                        `Failed to send ${errors.length} notification(s) to manager ${manager.id}: ${errors.map(e => e.message).join('; ')}`
+                        `Failed to send ${errors.length} notification(s) to manager ${manager.id}: ${errors.map((e) => e.message).join('; ')}`,
                     );
                 }
             }),
@@ -1131,14 +1128,11 @@ export const notifyMissedDeadline = task({
                 const errors: Error[] = [];
 
                 try {
-                    await notificationService.sendPushNotification(
-                        student.id,
-                        {
-                            title: `Missed Deadline: ${activityName}`,
-                            body: `Hi ${student.name || ''}, you missed the deadline for \"${activityName}\" in \"${runName}\". Please check with your facilitator for next steps.`,
-                            data: { courseActivityId, runId, deadline },
-                        },
-                    );
+                    await notificationService.sendPushNotification(student.id, {
+                        title: `Missed Deadline: ${activityName}`,
+                        body: `Hi ${student.name || ''}, you missed the deadline for \"${activityName}\" in \"${runName}\". Please check with your facilitator for next steps.`,
+                        data: { courseActivityId, runId, deadline },
+                    });
                 } catch (pushError) {
                     console.error(
                         ` Failed to send push notification to studentId: ${student.id}`,
@@ -1165,7 +1159,7 @@ export const notifyMissedDeadline = task({
 
                 if (errors.length > 0) {
                     throw new Error(
-                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map(e => e.message).join('; ')}`
+                        `Failed to send ${errors.length} notification(s) to student ${student.id}: ${errors.map((e) => e.message).join('; ')}`,
                     );
                 }
             }),
@@ -1306,11 +1300,14 @@ export const notifyFacilitatorPostDeadlineSummary = task({
                 const errors: Error[] = [];
 
                 try {
-                    await notificationService.sendPushNotification(facilitator.id, {
-                        title: `Graded activity deadline passed: ${activityName} `,
-                        body: `Activity "${activityName}" in "${runName}" deadline passed.Submitted: ${submitted}, Not submitted: ${notSubmitted} `,
-                        data: { courseActivityId, submitted, notSubmitted },
-                    });
+                    await notificationService.sendPushNotification(
+                        facilitator.id,
+                        {
+                            title: `Graded activity deadline passed: ${activityName} `,
+                            body: `Activity "${activityName}" in "${runName}" deadline passed.Submitted: ${submitted}, Not submitted: ${notSubmitted} `,
+                            data: { courseActivityId, submitted, notSubmitted },
+                        },
+                    );
                 } catch (pushError) {
                     console.error(
                         `Failed to send push notification to facilitatorId: ${facilitator.id}`,
@@ -1337,7 +1334,7 @@ export const notifyFacilitatorPostDeadlineSummary = task({
 
                 if (errors.length > 0) {
                     throw new Error(
-                        `Failed to send ${errors.length} notification(s) to facilitator ${facilitator.id}: ${errors.map(e => e.message).join('; ')}`
+                        `Failed to send ${errors.length} notification(s) to facilitator ${facilitator.id}: ${errors.map((e) => e.message).join('; ')}`,
                     );
                 }
             }),
@@ -1449,10 +1446,10 @@ export const notifyFacilitatorEndOfCourseRunFinalize = task({
 
         const endDate = row.end_date
             ? new Date(row.end_date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-            })
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+              })
             : '';
 
         const facilitatorsRes = await pool.query(
@@ -1474,11 +1471,14 @@ export const notifyFacilitatorEndOfCourseRunFinalize = task({
                 const errors: Error[] = [];
 
                 try {
-                    await notificationService.sendPushNotification(facilitator.id, {
-                        title: `Course run finalized: ${runName}`,
-                        body: `The course run "${runName}" for course "${courseName}" has been finalized. Please check the dashboard for details.`,
-                        data: { courseRunId },
-                    });
+                    await notificationService.sendPushNotification(
+                        facilitator.id,
+                        {
+                            title: `Course run finalized: ${runName}`,
+                            body: `The course run "${runName}" for course "${courseName}" has been finalized. Please check the dashboard for details.`,
+                            data: { courseRunId },
+                        },
+                    );
                 } catch (pushError) {
                     console.error(
                         `Failed to send push notification to facilitatorId: ${facilitator.id}`,
@@ -1505,7 +1505,7 @@ export const notifyFacilitatorEndOfCourseRunFinalize = task({
 
                 if (errors.length > 0) {
                     throw new Error(
-                        `Failed to send ${errors.length} notification(s) to facilitator ${facilitator.id}: ${errors.map(e => e.message).join('; ')}`
+                        `Failed to send ${errors.length} notification(s) to facilitator ${facilitator.id}: ${errors.map((e) => e.message).join('; ')}`,
                     );
                 }
             }),
