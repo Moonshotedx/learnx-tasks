@@ -681,7 +681,7 @@ export const notifyRedoEnabled = task({
         try {
             await notificationService.sendPushNotification(payload.userId, {
                 title: `Redo enabled for "${activityName}" in "${courseInfo}"`,
-                body: `Hi ${userName}, redo for activity "${activityName}" is enabled. New deadline: ${payload.newDeadline}.`,
+                body: `Hi ${userName}, redo for activity "${activityName}" is enabled. New deadline: ${formattedDeadlineIST}.`,
                 data: {
                     activityId: payload.courseActivityId.toString(),
                     newDeadline: payload.newDeadline,
@@ -900,12 +900,6 @@ export const scheduleNotifyMissedDeadline = task({
        WHERE ca.id = $1`,
             [courseActivityId],
         );
-
-        console.log("<<<< Activity Query Result >>>>", {
-            courseActivityId,
-            rowCount: activityRes.rowCount,
-            rows: activityRes.rows,
-        });
 
         if (!activityRes.rowCount || activityRes.rowCount < 1) {
             throw new Error(
