@@ -272,4 +272,18 @@ export const emailTemplates = {
       <p>Please ensure all activities are graded and finalized before the end date.</p>
     `,
     }),
+
+    passwordResetEmail: (resetUrl: string, expiresInMinutes: number) => ({
+        subject: 'Reset Your LearnX Password',
+        heading: 'Reset Password',
+        subheading: 'Use the secure link below to update your password.',
+        body: `
+      <p style="margin-bottom: 15px;">Hello,</p>
+      <p style="margin-bottom: 15px;">We received a request to reset your LearnX password.</p>
+      <p style="margin-bottom: 15px;">This link is valid for <strong>${expiresInMinutes} minutes</strong>.</p>
+      <p style="margin-bottom: 10px;">If the button does not work, use this link:</p>
+      <p style="margin-bottom: 15px; word-break: break-all;"><a href="${resetUrl}" style="color: #625A96;">${resetUrl}</a></p>
+      <p>If you did not request this change, you can safely ignore this email.</p>
+    `,
+    }),
 };

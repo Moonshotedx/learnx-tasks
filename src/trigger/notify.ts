@@ -1545,3 +1545,38 @@ export const scheduleNotifyFacilitatorEndOfCourseRunFinalize = task({
         );
     },
 });
+
+export const sendStudentPasswordResetEmail = task({
+    id: 'send-student-password-reset-email',
+    run: async (payload: {
+        userId: string;
+        resetUrl: string;
+        expiresInMinutes: number;
+    }) => {
+        const studentRes = await pool.query(
+            `SELECT id FROM users WHERE id = $1`,
+            [payload.userId],
+        );
+        const student = studentRes.rows[0];
+
+        if (!student) {
+            throw new Error(`User not found for userId: ${payload.userId}`);
+        }
+
+        const notificationService = new NotificationService(pool);
+        const template = emailTemplates.passwordResetEmail(
+            payload.resetUrl,
+            payload.expiresInMinutes,
+        );
+
+        await notificationService.sendEmailNotification(
+            payload.userId,
+            template.subject,
+            template.heading,
+            template.subheading,
+            template.body,
+            'Reset Password',
+            payload.resetUrl,
+        );
+    },
+});
