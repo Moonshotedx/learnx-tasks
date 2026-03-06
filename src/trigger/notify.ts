@@ -124,17 +124,54 @@ export const sendStudentDeadlineNotification = task({
             [groupId],
         );
 
+        const activityId = activity.activity_id;
+        const activityType = activity.type;
+        let submittedIds: string[] = [];
+
+        if (activityType === 'assignment') {
+            const submissions = await pool.query(
+                `SELECT DISTINCT user_id FROM assignment_submissions
+         WHERE activity_id = $1 AND course_run_id = $2`,
+                [activityId, payload.runId],
+            );
+            submittedIds = submissions.rows.map((r) => r.user_id);
+        } else if (activityType === 'quiz') {
+            const attempts = await pool.query(
+                `SELECT DISTINCT user_id FROM "quiz-attempts"
+         WHERE activity_id = $1 AND course_run_id = $2 AND completed_at IS NOT NULL`,
+                [activityId, payload.runId],
+            );
+            submittedIds = attempts.rows.map((r) => r.user_id);
+        } else if (activityType === 'exam') {
+            const examSubmissions = await pool.query(
+                `SELECT DISTINCT user_id FROM exam_submissions
+         WHERE activity_id = $1 AND course_run_id = $2 AND submitted_at IS NOT NULL`,
+                [activityId, payload.runId],
+            );
+            submittedIds = examSubmissions.rows.map((r) => r.user_id);
+        }
+
+        const studentsToNotify = studentsRes.rows.filter(
+            (s) => !submittedIds.includes(s.id),
+        );
+
+        if (!studentsToNotify.length) {
+            console.log(
+                `No students to notify for courseActivityId: ${payload.courseActivityId}, runId: ${payload.runId} - all have submitted`,
+            );
+            return;
+        }
+
         const notificationService = new NotificationService(pool);
 
         const results = await Promise.allSettled(
-            studentsRes.rows.map(async (student) => {
+            studentsToNotify.map(async (student) => {
                 const errors: Error[] = [];
                 const template = emailTemplates.deadlineSoon(
                     activityName,
                     runName,
                     payload.deadline,
                 );
-
                 try {
                     await notificationService.sendPushNotification(student.id, {
                         title: `Assignment "${activityName}" is due soon in "${runName}"`,
