@@ -1,17 +1,20 @@
-import { task, logger, AbortTaskRunError } from '@trigger.dev/sdk/v3';
 import { randomUUID } from 'crypto';
+import { task, logger, AbortTaskRunError } from '@trigger.dev/sdk/v3';
 import { hashPassword } from 'better-auth/crypto';
 import pool from '../lib/db';
 
-const PROGRESS_UPDATE_INTERVAL = 50;
 const INSERT_BATCH_SIZE = 50;
+
 const HASH_CONCURRENCY = 8;
 
-// Match src/lib/validations/user.ts and src/app/admin/components/user-management/bulk-csv-utils.ts exactly
 const EXPECTED_HEADER = 'name,email,password,role';
+
 const VALID_ROLES = ['admin', 'manager', 'student'] as const;
+
 const NEWLINE_REGEX = /[\r\n]/;
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const PASSWORD = {
     minLength: 8,
     hasLetter: /[a-zA-Z]/,
@@ -19,10 +22,17 @@ const PASSWORD = {
     hasSymbol: /[!@#$%^&*()_+\-=[\]{}|;:'",.<>?/\\~`]/,
 } as const;
 
+type BulkRow = { name: string; email: string; password: string; role: string };
+
+type ValidationError = { row: number; field?: string; value?: string; message: string };
+
 function hasNewline(s: string): boolean {
     return NEWLINE_REGEX.test(s);
 }
 
+/**
+ * Parses a single CSV line, handling quoted commas.
+ */
 function parseCSVLine(line: string): string[] {
     const fields: string[] = [];
     let current = '';
@@ -42,9 +52,13 @@ function parseCSVLine(line: string): string[] {
     return fields;
 }
 
-type BulkRow = { name: string; email: string; password: string; role: string };
-type ValidationError = { row: number; field?: string; value?: string; message: string };
-
+/**
+ * Parses a bulk user CSV string.
+ * Expects header: name,email,password,role. Handles quoted fields.
+ *
+ * @param content - Raw CSV file content
+ * @returns Parsed rows or error message if invalid
+ */
 function parseBulkCSV(
     content: string,
 ): { ok: true; rows: BulkRow[] } | { ok: false; error: string } {
@@ -82,6 +96,14 @@ function parseBulkCSV(
     return { ok: true, rows };
 }
 
+/**
+ * Validates a single CSV row (name, email, password, role).
+ * Enforces no newlines, valid email, password strength, and valid role.
+ *
+ * @param r - Parsed row to validate
+ * @param rowNum - 1-based row number (for error reporting)
+ * @returns Validation result with optional error details
+ */
 function validateRow(
     r: BulkRow,
     rowNum: number,
@@ -181,6 +203,12 @@ function validateRow(
     return { valid: true };
 }
 
+/**
+ * Updates a bulk job record in the database.
+ *
+ * @param jobId - Bulk job ID
+ * @param updates - Partial job fields to update (status, counts, failedRows, etc.)
+ */
 async function updateJob(
     jobId: number,
     updates: {
@@ -232,6 +260,13 @@ async function updateJob(
     );
 }
 
+/**
+ * Hashes passwords in batches with limited concurrency.
+ *
+ * @param rows - Objects with password field
+ * @param concurrency - Max concurrent hash operations
+ * @returns Array of hashed passwords in same order as input
+ */
 async function hashPasswordsBatched(
     rows: { password: string }[],
     concurrency: number,
@@ -249,6 +284,12 @@ async function hashPasswordsBatched(
     return results;
 }
 
+/**
+ * Trigger.dev task for bulk operations.
+ * Dispatched by the tRPC bulk router when a bulk job is started.
+ *
+ * @param payload.jobId - ID of the bulk_jobs record (contains file URL and type)
+ */
 export const bulkJobTask = task({
     id: 'bulk-job',
     run: async (payload: { jobId: number }) => {
@@ -267,6 +308,12 @@ export const bulkJobTask = task({
     },
 });
 
+/**
+ * Runs a bulk job: fetches file, parses CSV, validates, and processes.
+ * Supports 'add_users' (creates users + accounts). 'add_groups' is not yet implemented.
+ *
+ * @param jobId - Bulk job ID from bulk_jobs table
+ */
 async function runBulkJob(jobId: number) {
     logger.info('Bulk job started', { jobId });
 
