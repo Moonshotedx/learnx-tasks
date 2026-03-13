@@ -1,4 +1,4 @@
-import { task } from '@trigger.dev/sdk/v3';
+import { logger, task } from '@trigger.dev/sdk/v3';
 import pool from '../lib/db';
 import { emailTemplates } from '../lib/email-template';
 import { NotificationService } from '../lib/notify-service';
@@ -156,7 +156,7 @@ export const sendStudentDeadlineNotification = task({
         );
 
         if (!studentsToNotify.length) {
-            console.log(
+            logger.log(
                 `No students to notify for courseActivityId: ${payload.courseActivityId}, runId: ${payload.runId} - all have submitted`,
             );
             return;
