@@ -1,3 +1,3 @@
 # learnx-tasks
 
-cron task for learnx
+Cron and background tasks for learnx.

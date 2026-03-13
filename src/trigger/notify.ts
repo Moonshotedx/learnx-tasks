@@ -1,4 +1,4 @@
-import { task } from '@trigger.dev/sdk/v3';
+import { logger, task } from '@trigger.dev/sdk/v3';
 import pool from '../lib/db';
 import { emailTemplates } from '../lib/email-template';
 import { NotificationService } from '../lib/notify-service';
@@ -124,17 +124,54 @@ export const sendStudentDeadlineNotification = task({
             [groupId],
         );
 
+        const activityId = activity.activity_id;
+        const activityType = activity.type;
+        let submittedIds: string[] = [];
+
+        if (activityType === 'assignment') {
+            const submissions = await pool.query(
+                `SELECT DISTINCT user_id FROM assignment_submissions
+         WHERE activity_id = $1 AND course_run_id = $2`,
+                [activityId, payload.runId],
+            );
+            submittedIds = submissions.rows.map((r) => r.user_id);
+        } else if (activityType === 'quiz') {
+            const attempts = await pool.query(
+                `SELECT DISTINCT user_id FROM "quiz-attempts"
+         WHERE activity_id = $1 AND course_run_id = $2 AND completed_at IS NOT NULL`,
+                [activityId, payload.runId],
+            );
+            submittedIds = attempts.rows.map((r) => r.user_id);
+        } else if (activityType === 'exam') {
+            const examSubmissions = await pool.query(
+                `SELECT DISTINCT user_id FROM exam_submissions
+         WHERE activity_id = $1 AND course_run_id = $2 AND submitted_at IS NOT NULL`,
+                [activityId, payload.runId],
+            );
+            submittedIds = examSubmissions.rows.map((r) => r.user_id);
+        }
+
+        const studentsToNotify = studentsRes.rows.filter(
+            (s) => !submittedIds.includes(s.id),
+        );
+
+        if (!studentsToNotify.length) {
+            logger.log(
+                `No students to notify for courseActivityId: ${payload.courseActivityId}, runId: ${payload.runId} - all have submitted`,
+            );
+            return;
+        }
+
         const notificationService = new NotificationService(pool);
 
         const results = await Promise.allSettled(
-            studentsRes.rows.map(async (student) => {
+            studentsToNotify.map(async (student) => {
                 const errors: Error[] = [];
                 const template = emailTemplates.deadlineSoon(
                     activityName,
                     runName,
                     payload.deadline,
                 );
-
                 try {
                     await notificationService.sendPushNotification(student.id, {
                         title: `Assignment "${activityName}" is due soon in "${runName}"`,
@@ -1542,6 +1579,41 @@ export const scheduleNotifyFacilitatorEndOfCourseRunFinalize = task({
                 tags: [`run_${courseRunId}`],
                 metadata: { courseRunId, endDate },
             },
+        );
+    },
+});
+
+export const sendStudentPasswordResetEmail = task({
+    id: 'send-student-password-reset-email',
+    run: async (payload: {
+        userId: string;
+        resetUrl: string;
+        expiresInMinutes: number;
+    }) => {
+        const studentRes = await pool.query(
+            `SELECT id FROM users WHERE id = $1`,
+            [payload.userId],
+        );
+        const student = studentRes.rows[0];
+
+        if (!student) {
+            throw new Error(`User not found for userId: ${payload.userId}`);
+        }
+
+        const notificationService = new NotificationService(pool);
+        const template = emailTemplates.passwordResetEmail(
+            payload.resetUrl,
+            payload.expiresInMinutes,
+        );
+
+        await notificationService.sendEmailNotification(
+            payload.userId,
+            template.subject,
+            template.heading,
+            template.subheading,
+            template.body,
+            'Reset Password',
+            payload.resetUrl,
         );
     },
 });
