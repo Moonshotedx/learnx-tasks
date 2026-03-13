@@ -82,7 +82,7 @@ function parseBulkCSV(
         }
         rows.push({
             name: String(cells[0] ?? '').trim(),
-            email: String(cells[1] ?? '').trim(),
+            email: String(cells[1] ?? '').trim().toLowerCase(),
             password: String(cells[2] ?? '').trim(),
             role: String(cells[3] ?? '').trim().toLowerCase(),
         });
