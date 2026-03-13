@@ -1,13 +1,14 @@
 import { randomUUID } from 'crypto';
 import { task, logger, AbortTaskRunError } from '@trigger.dev/sdk/v3';
 import { hashPassword } from 'better-auth/crypto';
+import { parse } from 'csv-parse/sync';
 import pool from '../lib/db';
 
 const INSERT_BATCH_SIZE = 50;
 
 const HASH_CONCURRENCY = 8;
 
-const EXPECTED_HEADER = 'name,email,password,role';
+const EXPECTED_HEADER_COLS = ['name', 'email', 'password', 'role'] as const;
 
 const VALID_ROLES = ['admin', 'manager', 'student'] as const;
 
@@ -31,30 +32,9 @@ function hasNewline(s: string): boolean {
 }
 
 /**
- * Parses a single CSV line, handling quoted commas.
- */
-function parseCSVLine(line: string): string[] {
-    const fields: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-        const c = line[i];
-        if (c === '"') {
-            inQuotes = !inQuotes;
-        } else if (c === ',' && !inQuotes) {
-            fields.push(current.trim());
-            current = '';
-        } else {
-            current += c;
-        }
-    }
-    fields.push(current.trim());
-    return fields;
-}
-
-/**
- * Parses a bulk user CSV string.
- * Expects header: name,email,password,role. Handles quoted fields.
+ * Parses a bulk user CSV string using csv-parse.
+ * Expects header: name,email,password,role. Handles escaped quotes,
+ * multi-line fields, and other RFC 4180 CSV edge cases.
  *
  * @param content - Raw CSV file content
  * @returns Parsed rows or error message if invalid
@@ -62,12 +42,28 @@ function parseCSVLine(line: string): string[] {
 function parseBulkCSV(
     content: string,
 ): { ok: true; rows: BulkRow[] } | { ok: false; error: string } {
-    const lines = content.split(/\r?\n/).map((l) => l.trim());
-    const nonEmpty = lines.filter((l) => l.length > 0);
-    if (nonEmpty.length === 0) return { ok: false, error: 'CSV is empty' };
+    let records: string[][];
+    try {
+        records = parse(content, {
+            skip_empty_lines: true,
+            trim: true,
+            relax_column_count: false,
+        }) as string[][];
+    } catch (err) {
+        return {
+            ok: false,
+            error: `Invalid CSV: ${err instanceof Error ? err.message : 'parse error'}`,
+        };
+    }
+    if (records.length === 0) return { ok: false, error: 'CSV is empty' };
 
-    const headerLine = nonEmpty[0];
-    if (headerLine !== EXPECTED_HEADER) {
+    const headerRow = records[0];
+    const headerMatch =
+        headerRow?.length === 4 &&
+        EXPECTED_HEADER_COLS.every(
+            (col, i) => (headerRow[i] ?? '').toLowerCase() === col,
+        );
+    if (!headerMatch) {
         return {
             ok: false,
             error:
@@ -76,11 +72,9 @@ function parseBulkCSV(
     }
 
     const rows: BulkRow[] = [];
-    for (let i = 1; i < nonEmpty.length; i++) {
-        const line = nonEmpty[i];
-        if (!line.trim()) continue;
-        const cells = parseCSVLine(line);
-        if (cells.length !== 4) {
+    for (let i = 1; i < records.length; i++) {
+        const cells = records[i];
+        if (!cells || cells.length !== 4) {
             return {
                 ok: false,
                 error: `Row ${i + 1}: exactly 4 columns required (name, email, password, role). No extra or missing columns.`,
