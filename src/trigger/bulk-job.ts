@@ -1,9 +1,11 @@
-import { task, logger } from '@trigger.dev/sdk/v3';
+import { task, logger, AbortTaskRunError } from '@trigger.dev/sdk/v3';
 import { randomUUID } from 'crypto';
 import { hashPassword } from 'better-auth/crypto';
 import pool from '../lib/db';
 
 const PROGRESS_UPDATE_INTERVAL = 50;
+const INSERT_BATCH_SIZE = 50;
+const HASH_CONCURRENCY = 8;
 
 // Match src/lib/validations/user.ts and src/app/admin/components/user-management/bulk-csv-utils.ts exactly
 const EXPECTED_HEADER = 'name,email,password,role';
@@ -230,6 +232,23 @@ async function updateJob(
     );
 }
 
+async function hashPasswordsBatched(
+    rows: { password: string }[],
+    concurrency: number,
+): Promise<string[]> {
+    const results: string[] = new Array(rows.length);
+    for (let i = 0; i < rows.length; i += concurrency) {
+        const batch = rows.slice(i, i + concurrency);
+        const hashed = await Promise.all(
+            batch.map((r) => hashPassword(r.password)),
+        );
+        for (let j = 0; j < hashed.length; j++) {
+            results[i + j] = hashed[j];
+        }
+    }
+    return results;
+}
+
 export const bulkJobTask = task({
     id: 'bulk-job',
     run: async (payload: { jobId: number }) => {
@@ -370,81 +389,209 @@ async function runBulkJob(jobId: number) {
                 return;
             }
 
-            logger.info('Hashing passwords', { jobId, count: validRows.length });
-            const hashedPasswords = await Promise.all(
-                validRows.map((r) => hashPassword(r.password)),
-            );
-            logger.info('Passwords hashed, inserting users', { jobId });
-
             const now = new Date();
             const client = await pool.connect();
 
             try {
                 await client.query('BEGIN');
-                for (let i = 0; i < validRows.length; i++) {
-                    const r = validRows[i];
-                    const userId = `user-${randomUUID()}`;
-                    const accountId = `account-${randomUUID()}`;
+                let totalCreated = 0;
+
+                for (
+                    let batchStart = 0;
+                    batchStart < validRows.length;
+                    batchStart += INSERT_BATCH_SIZE
+                ) {
+                    const batch = validRows.slice(
+                        batchStart,
+                        batchStart + INSERT_BATCH_SIZE,
+                    );
+                    logger.info('Hashing passwords', {
+                        jobId,
+                        batch: batch.length,
+                        totalSoFar: batchStart,
+                    });
+                    const hashedPasswords = await hashPasswordsBatched(
+                        batch,
+                        HASH_CONCURRENCY,
+                    );
+                    logger.info('Passwords hashed, inserting batch', {
+                        jobId,
+                        batchSize: batch.length,
+                    });
+
+                    const usersValues: unknown[] = [];
+                    const accountsValues: unknown[] = [];
+                    const usersPlaceholders: string[] = [];
+                    const accountsPlaceholders: string[] = [];
+
+                    for (let i = 0; i < batch.length; i++) {
+                        const r = batch[i];
+                        const userId = `user-${randomUUID()}`;
+                        const accountId = `account-${randomUUID()}`;
+                        const base = i * 6;
+                        usersPlaceholders.push(
+                            `($${base + 1}, $${base + 2}, $${base + 3}, true, $${base + 4}, $${base + 5}, $${base + 6})`,
+                        );
+                        usersValues.push(
+                            userId,
+                            r.name,
+                            r.email,
+                            now,
+                            now,
+                            r.role,
+                        );
+                        accountsPlaceholders.push(
+                            `($${base + 1}, $${base + 2}, 'credential', $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`,
+                        );
+                        accountsValues.push(
+                            accountId,
+                            userId,
+                            userId,
+                            hashedPasswords[i],
+                            now,
+                            now,
+                        );
+                    }
+
                     await client.query(
                         `INSERT INTO users (id, name, email, email_verified, created_at, updated_at, role)
-                         VALUES ($1, $2, $3, true, $4, $5, $6)`,
-                        [userId, r.name, r.email, now, now, r.role],
+                         VALUES ${usersPlaceholders.join(', ')}`,
+                        usersValues,
                     );
                     await client.query(
                         `INSERT INTO accounts (id, account_id, provider_id, user_id, password, created_at, updated_at)
-                         VALUES ($1, $2, 'credential', $3, $4, $5, $6)`,
-                        [accountId, userId, userId, hashedPasswords[i], now, now],
+                         VALUES ${accountsPlaceholders.join(', ')}`,
+                        accountsValues,
                     );
-                    if ((i + 1) % PROGRESS_UPDATE_INTERVAL === 0) {
-                        await updateJob(jobId, { createdCount: i + 1 });
-                        logger.info('Insert progress', { jobId, created: i + 1, total: validRows.length });
-                    }
+
+                    totalCreated += batch.length;
+                    await updateJob(jobId, { createdCount: totalCreated });
+                    logger.info('Insert progress', {
+                        jobId,
+                        created: totalCreated,
+                        total: validRows.length,
+                    });
                 }
+
                 await client.query('COMMIT');
-                logger.info('Insert complete', { jobId, created: validRows.length });
-            } catch (err) {
-                await client.query('ROLLBACK');
-                const msg =
-                    err instanceof Error ? err.message : 'Transaction failed';
-                let failedRows: { row?: number; email?: string; error: string }[] =
-                    [];
-                const dupMatch = msg.match(
-                    /duplicate key.*?\(([^)]+)\)/i,
-                );
-                if (dupMatch && /email|users/.test(msg)) {
-                    const email = dupMatch[1].trim();
-                    const idx = validRows.findIndex((r) => r.email === email);
-                    failedRows = [
-                        {
-                            row: idx >= 0 ? idx + 2 : undefined,
-                            email,
-                            error: 'Email already exists',
-                        },
-                    ];
-                } else {
-                    failedRows = [{ error: msg }];
-                }
+                logger.info('Insert complete', {
+                    jobId,
+                    created: validRows.length,
+                });
                 await updateJob(jobId, {
-                    status: 'failed',
-                    createdCount: 0,
-                    failedCount: failedRows.length,
-                    failedRows,
-                    errorMessage: msg,
+                    status: 'completed',
+                    createdCount: validRows.length,
+                    failedCount: 0,
+                    failedRows: [],
+                    errorMessage: null,
                     completedAt: new Date(),
                 });
-                return;
+            } catch (err) {
+                try {
+                    await client.query('ROLLBACK');
+                } catch (rollbackErr) {
+                    logger.warn('Rollback failed', {
+                        jobId,
+                        rollbackErr:
+                            rollbackErr instanceof Error
+                                ? rollbackErr.message
+                                : String(rollbackErr),
+                    });
+                }
+                const rawMsg =
+                    err instanceof Error ? err.message : 'Transaction failed';
+                const pgErr = err as { code?: string; detail?: string };
+                let failedRows: { row?: number; email?: string; error: string }[] =
+                    [];
+                let userFriendlyMessage: string;
+
+                const isEmailDuplicate =
+                    pgErr.code === '23505' &&
+                    (/email|users|users_email_unique/.test(rawMsg) ||
+                        (pgErr as { constraint?: string }).constraint ===
+                            'users_email_unique');
+                if (isEmailDuplicate) {
+                    let email: string | undefined;
+                    if (pgErr.detail) {
+                        const detailMatch = pgErr.detail.match(
+                            /Key \(email\)=\(([^)]+)\)/i,
+                        );
+                        if (detailMatch) email = detailMatch[1].trim();
+                    }
+                    if (!email) {
+                        const msgMatch = rawMsg.match(
+                            /Key \(email\)=\(([^)]+)\)/i,
+                        );
+                        if (msgMatch) email = msgMatch[1].trim();
+                    }
+                    const duplicateInCsv =
+                        email !== undefined
+                            ? validRows
+                                  .map((r, i) =>
+                                      r.email.toLowerCase() === email!.toLowerCase()
+                                          ? i + 2
+                                          : -1,
+                                  )
+                                  .filter((row) => row > 0)
+                            : [];
+                    const isCsvDuplicate = duplicateInCsv.length > 1;
+
+                    if (isCsvDuplicate) {
+                        failedRows = duplicateInCsv.map((row) => ({
+                            row,
+                            email,
+                            error: 'Duplicate email in CSV (same email appears multiple times)',
+                        }));
+                        userFriendlyMessage =
+                            email !== undefined
+                                ? `Duplicate email in your CSV: "${email}" appears at rows ${duplicateInCsv.join(', ')}. Remove duplicate rows and try again.`
+                                : 'Duplicate email in your CSV. The same email appears multiple times. Remove duplicate rows and try again.';
+                    } else {
+                        const rowNum =
+                            duplicateInCsv.length > 0
+                                ? duplicateInCsv[0]
+                                : undefined;
+                        failedRows = [
+                            {
+                                row: rowNum,
+                                email: email,
+                                error: 'User with this email already exists in the system',
+                            },
+                        ];
+                        userFriendlyMessage =
+                            email !== undefined
+                                ? `A user with this email already exists in the system: ${email}. Remove this row or use a different email.`
+                                : 'One or more users already exist. Please remove duplicates and try again.';
+                    }
+                } else {
+                    failedRows = [{ error: rawMsg }];
+                    userFriendlyMessage =
+                        'An error occurred while creating users. Please check your CSV and try again.';
+                }
+
+                try {
+                    await updateJob(jobId, {
+                        status: 'failed',
+                        createdCount: 0,
+                        failedCount: failedRows.length,
+                        failedRows,
+                        errorMessage: userFriendlyMessage,
+                        completedAt: new Date(),
+                    });
+                } catch (updateErr) {
+                    logger.error('Failed to update job status to failed', {
+                        jobId,
+                        err:
+                            updateErr instanceof Error
+                                ? updateErr.message
+                                : String(updateErr),
+                    });
+                    throw updateErr;
+                }
+                throw new AbortTaskRunError(userFriendlyMessage);
             } finally {
                 client.release();
             }
-
-            await updateJob(jobId, {
-                status: 'completed',
-                createdCount: validRows.length,
-                failedCount: 0,
-                failedRows: [],
-                errorMessage: null,
-                completedAt: new Date(),
-            });
         } else if (jobType === 'add_groups') {
             await updateJob(jobId, {
                 status: 'failed',
