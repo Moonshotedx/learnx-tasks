@@ -261,6 +261,25 @@ async function updateJob(
     );
 }
 
+async function failJobAndAbort(
+    jobId: number,
+    message: string,
+    extraUpdates: {
+        totalRows?: number;
+        createdCount?: number;
+        failedCount?: number;
+        failedRows?: unknown;
+    } = {},
+) {
+    await updateJob(jobId, {
+        status: 'failed',
+        errorMessage: message,
+        completedAt: new Date(),
+        ...extraUpdates,
+    });
+    throw new AbortTaskRunError(message);
+}
+
 /**
  * Hashes passwords in batches with limited concurrency.
  *
@@ -359,15 +378,9 @@ async function runBulkJob(jobId: number) {
 
         const parseResult = parseBulkCSV(csvText);
         if (!parseResult.ok) {
-            await updateJob(jobId, {
-                status: 'failed',
-                errorMessage: parseResult.error,
-                completedAt: new Date(),
-            });
-            return;
+            await failJobAndAbort(jobId, parseResult.error);
         }
-
-        const rows = parseResult.rows;
+        const rows = (parseResult as { ok: true; rows: BulkRow[] }).rows;
         logger.info('CSV parsed, validating rows', { jobId, rowCount: rows.length });
 
         const validationErrors: ValidationError[] = [];
@@ -417,16 +430,13 @@ async function runBulkJob(jobId: number) {
         }
 
         if (validationErrors.length > 0) {
-            await updateJob(jobId, {
-                status: 'failed',
+            const message = `${validationErrors.length} validation error(s)`;
+            await failJobAndAbort(jobId, message, {
                 totalRows: rows.length,
                 createdCount: 0,
                 failedCount: validationErrors.length,
                 failedRows: validationErrors,
-                errorMessage: `${validationErrors.length} validation error(s)`,
-                completedAt: new Date(),
             });
-            return;
         }
 
         logger.info('Validation passed, starting processing', { jobId, validRows: validRows.length });
@@ -458,15 +468,12 @@ async function runBulkJob(jobId: number) {
                 }
             });
             if (duplicateRows.length > 0) {
-                await updateJob(jobId, {
-                    status: 'failed',
+                const message = `Duplicate email: ${duplicateRows[0].value} at row ${duplicateRows[0].row}`;
+                await failJobAndAbort(jobId, message, {
                     createdCount: 0,
                     failedCount: duplicateRows.length,
                     failedRows: duplicateRows,
-                    errorMessage: `Duplicate email: ${duplicateRows[0].value} at row ${duplicateRows[0].row}`,
-                    completedAt: new Date(),
                 });
-                return;
             }
 
             const now = new Date();
@@ -676,16 +683,11 @@ async function runBulkJob(jobId: number) {
                 client.release();
             }
         } else if (jobType === 'add_groups') {
-            await updateJob(jobId, {
-                status: 'failed',
-                errorMessage: `Unsupported bulk type: ${jobType}`,
-                completedAt: new Date(),
-            });
+            await failJobAndAbort(
+                jobId,
+                `Unsupported bulk type: ${jobType}`,
+            );
         } else {
-            await updateJob(jobId, {
-                status: 'failed',
-                errorMessage: `Unknown bulk type: ${jobType}`,
-                completedAt: new Date(),
-            });
+            await failJobAndAbort(jobId, `Unknown bulk type: ${jobType}`);
         }
 }
