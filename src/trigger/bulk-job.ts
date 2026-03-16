@@ -25,7 +25,14 @@ const PASSWORD = {
 
 type BulkRow = { name: string; email: string; password: string; role: string };
 
-type ValidationError = { row: number; field?: string; value?: string; message: string };
+type ValidationError = { row?: number; field?: string; value?: string; message: string };
+
+interface BulkJob {
+    id: number;
+    type: 'add_users';
+    file_url: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+}
 
 function hasNewline(s: string): boolean {
     return NEWLINE_REGEX.test(s);
@@ -311,11 +318,11 @@ export const bulkJobTask = task({
 async function runBulkJob(jobId: number) {
     logger.info('Bulk job started', { jobId });
 
-    const jobRes = await pool.query(
+        const jobRes = await pool.query(
             'SELECT id, type, file_url, status FROM bulk_jobs WHERE id = $1',
             [jobId],
         );
-        const job = jobRes.rows[0];
+        const job = jobRes.rows[0] as BulkJob | undefined;
         if (!job) {
             throw new Error(`Bulk job ${jobId} not found`);
         }
@@ -329,7 +336,9 @@ async function runBulkJob(jobId: number) {
 
         let csvText: string;
         try {
+            logger.info('Fetching CSV from R2', { jobId, fileUrl });
             const resp = await fetch(fileUrl);
+            logger.info('Response', { jobId, resp });
             if (!resp.ok) {
                 throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
             }
@@ -337,12 +346,13 @@ async function runBulkJob(jobId: number) {
         } catch (err) {
             const msg =
                 err instanceof Error ? err.message : 'Failed to fetch file';
+            const friendly = `Failed to fetch file: ${msg}`;
             await updateJob(jobId, {
                 status: 'failed',
-                errorMessage: `Failed to fetch file: ${msg}`,
+                errorMessage: friendly,
                 completedAt: new Date(),
             });
-            return;
+            throw new AbortTaskRunError(friendly);
         }
 
         logger.info('CSV fetched, parsing', { jobId, sizeBytes: csvText.length });
@@ -361,8 +371,10 @@ async function runBulkJob(jobId: number) {
         logger.info('CSV parsed, validating rows', { jobId, rowCount: rows.length });
 
         const validationErrors: ValidationError[] = [];
-        const validRows: (BulkRow & { role: (typeof VALID_ROLES)[number] })[] =
-            [];
+        const validRows: (BulkRow & {
+            role: (typeof VALID_ROLES)[number];
+            originalRow: number;
+        })[] = [];
 
         for (let i = 0; i < rows.length; i++) {
             const rowNum = i + 2;
@@ -371,9 +383,36 @@ async function runBulkJob(jobId: number) {
                 validRows.push({
                     ...rows[i],
                     role: rows[i].role as (typeof VALID_ROLES)[number],
+                    originalRow: rowNum,
                 });
             } else {
                 validationErrors.push(result.error);
+            }
+        }
+
+        const emailToRows = new Map<string, number[]>();
+        for (let i = 0; i < rows.length; i++) {
+            const email = rows[i].email?.trim().toLowerCase();
+            if (!email) continue;
+            const rowNum = i + 2;
+            const existing = emailToRows.get(email);
+            if (existing) {
+                existing.push(rowNum);
+            } else {
+                emailToRows.set(email, [rowNum]);
+            }
+        }
+
+        for (const [email, rowNums] of emailToRows.entries()) {
+            if (rowNums.length <= 1) continue;
+            for (const row of rowNums) {
+                validationErrors.push({
+                    row,
+                    field: 'email',
+                    value: email,
+                    message:
+                        'Duplicate email in CSV (same email appears multiple times)',
+                });
             }
         }
 
@@ -407,14 +446,14 @@ async function runBulkJob(jobId: number) {
             const existingEmails = new Set(
                 existingRes.rows.map((r: { email: string }) => r.email),
             );
-            const duplicateRows: { row: number; email: string; error: string }[] =
-                [];
-            validRows.forEach((r, i) => {
+            const duplicateRows: ValidationError[] = [];
+            validRows.forEach((r) => {
                 if (existingEmails.has(r.email)) {
                     duplicateRows.push({
-                        row: i + 2,
-                        email: r.email,
-                        error: 'Email already exists',
+                        row: r.originalRow,
+                        field: 'email',
+                        value: r.email,
+                        message: 'Email already exists',
                     });
                 }
             });
@@ -424,7 +463,7 @@ async function runBulkJob(jobId: number) {
                     createdCount: 0,
                     failedCount: duplicateRows.length,
                     failedRows: duplicateRows,
-                    errorMessage: `Duplicate email: ${duplicateRows[0].email} at row ${duplicateRows[0].row}`,
+                    errorMessage: `Duplicate email: ${duplicateRows[0].value} at row ${duplicateRows[0].row}`,
                     completedAt: new Date(),
                 });
                 return;
@@ -542,8 +581,7 @@ async function runBulkJob(jobId: number) {
                 const rawMsg =
                     err instanceof Error ? err.message : 'Transaction failed';
                 const pgErr = err as { code?: string; detail?: string };
-                let failedRows: { row?: number; email?: string; error: string }[] =
-                    [];
+                let failedRows: ValidationError[] = [];
                 let userFriendlyMessage: string;
 
                 const isEmailDuplicate =
@@ -568,9 +606,9 @@ async function runBulkJob(jobId: number) {
                     const duplicateInCsv =
                         email !== undefined
                             ? validRows
-                                  .map((r, i) =>
+                                  .map((r) =>
                                       r.email.toLowerCase() === email!.toLowerCase()
-                                          ? i + 2
+                                          ? r.originalRow
                                           : -1,
                                   )
                                   .filter((row) => row > 0)
@@ -580,8 +618,10 @@ async function runBulkJob(jobId: number) {
                     if (isCsvDuplicate) {
                         failedRows = duplicateInCsv.map((row) => ({
                             row,
-                            email,
-                            error: 'Duplicate email in CSV (same email appears multiple times)',
+                            field: 'email',
+                            value: email,
+                            message:
+                                'Duplicate email in CSV (same email appears multiple times)',
                         }));
                         userFriendlyMessage =
                             email !== undefined
@@ -595,8 +635,10 @@ async function runBulkJob(jobId: number) {
                         failedRows = [
                             {
                                 row: rowNum,
-                                email: email,
-                                error: 'User with this email already exists in the system',
+                                field: 'email',
+                                value: email,
+                                message:
+                                    'User with this email already exists in the system',
                             },
                         ];
                         userFriendlyMessage =
@@ -605,7 +647,7 @@ async function runBulkJob(jobId: number) {
                                 : 'One or more users already exist. Please remove duplicates and try again.';
                     }
                 } else {
-                    failedRows = [{ error: rawMsg }];
+                    failedRows = [{ message: rawMsg }];
                     userFriendlyMessage =
                         'An error occurred while creating users. Please check your CSV and try again.';
                 }
