@@ -1,8 +1,8 @@
-import { defineConfig } from "@trigger.dev/sdk/v3"
+import { defineConfig } from "@trigger.dev/sdk"
 
 export default defineConfig({
   project: "proj_unbfprpukfefqmorvetq",
-  runtime: "node",
+  runtime: "node-24",
   logLevel: "log",
   maxDuration: 600,
   retries: {

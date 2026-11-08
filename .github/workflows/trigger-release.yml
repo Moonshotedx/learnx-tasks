@@ -43,7 +43,6 @@ jobs:
               env:
                   TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
                   TRIGGER_API_URL: ${{ secrets.TRIGGER_API_URL }}
-                  REGISTRY_URL: ghcr.io
 
                   VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
                   VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
@@ -54,7 +53,7 @@ jobs:
                   ZEPTO_FROM_ADDRESS: ${{ secrets.ZEPTO_FROM_ADDRESS }}
                   ZEPTO_TOKEN: ${{ secrets.ZEPTO_TOKEN }}
               run: |
-                  # Deploy to staging environment
-                  pnpm dlx trigger.dev@3.3.16 deploy --self-hosted --push --registry "ghcr.io/moonshotedx" --env staging
-                  # Deploy to production environment
-                  pnpm dlx trigger.dev@3.3.16 deploy --self-hosted --push --registry "ghcr.io/moonshotedx" --env prod
+                  # Self-hosted v4 builds locally and pushes to the registry
+                  # configured on the instance. CLI and SDK are both 4.8.3.
+                  pnpm run deploy:staging
+                  pnpm run deploy:prod

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { task, logger, AbortTaskRunError } from '@trigger.dev/sdk/v3';
+import { task, logger, AbortTaskRunError } from '@trigger.dev/sdk';
 import { hashPassword } from 'better-auth/crypto';
 import { parse } from 'csv-parse/sync';
 import pool from '../lib/db';

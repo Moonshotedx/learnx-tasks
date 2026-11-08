@@ -1,4 +1,4 @@
-import { task } from '@trigger.dev/sdk/v3';
+import { task } from '@trigger.dev/sdk';
 import pool from '../lib/db';
 import { convertUTCToISTString } from '../lib/utils';
 

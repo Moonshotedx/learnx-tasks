@@ -1,4 +1,4 @@
-import { logger, task } from '@trigger.dev/sdk/v3';
+import { logger, task } from '@trigger.dev/sdk';
 import pool from '../lib/db';
 import { emailTemplates } from '../lib/email-template';
 import { NotificationService } from '../lib/notify-service';

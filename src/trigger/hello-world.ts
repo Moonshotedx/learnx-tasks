@@ -1,4 +1,4 @@
-import { logger, schemaTask } from '@trigger.dev/sdk/v3';
+import { logger, schemaTask } from '@trigger.dev/sdk';
 
 export const helloWorldTask = schemaTask({
     id: 'hello-world',

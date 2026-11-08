@@ -5,7 +5,9 @@
     "main": "index.js",
     "scripts": {
         "build": "tsc",
-        "dev": "pnpm dlx trigger.dev@3.3.16 dev",
+        "dev": "trigger dev",
+        "deploy:staging": "trigger deploy --env staging",
+        "deploy:prod": "trigger deploy --env prod",
         "test:notifications": "ts-node src/test/notification-tests.ts"
     },
     "keywords": [],
@@ -14,7 +16,7 @@
     "packageManager": "pnpm@10.14.0",
     "dependencies": {
         "@date-fns/tz": "^1.4.1",
-        "@trigger.dev/sdk": "^3.3.16",
+        "@trigger.dev/sdk": "4.8.3",
         "better-auth": "1.4.5",
         "csv-parse": "^6.1.0",
         "date-fns": "^4.1.0",
@@ -26,6 +28,7 @@
     "devDependencies": {
         "@types/express": "^5.0.3",
         "@types/node": "^24.2.1",
+        "trigger.dev": "4.8.3",
         "ts-node": "^10.9.2",
         "ts-node-dev": "^2.0.0",
         "typescript": "^5.9.2"
